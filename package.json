@@ -22,7 +22,6 @@
     "clsx": "^2.0.0",
     "dayjs": "^1.11.9",
     "eslint": "8.45.0",
-    "eslint-config-next": "13.4.12",
     "framer-motion": "^10.15.0",
     "html-react-parser": "^4.2.1",
     "i18next": "^23.8.2",
@@ -49,6 +48,7 @@
     "zustand": "^4.3.9"
   },
   "devDependencies": {
+    "eslint-config-next": "^15.5.2",
     "prettier": "^3.0.3"
   }
 }

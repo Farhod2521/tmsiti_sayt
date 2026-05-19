@@ -15,7 +15,7 @@
   "all_news": "Barcha yangiliklar",
   "news": "Yangilik",
   "structure": "Tarkibiy bo'linmalar",
-  "vacancies": "Vakansiyalar",
+  "vacancies": "Onlayn Test",
   "about_us": "Biz haqimizda",
   "homepage": "Bosh sahifa",
   "receptionDays": "Qabul kunlari",
@@ -28,6 +28,8 @@
   "documents": "Me’yoriy hujjatlar",
   "laws": "Qonun, qaror va farmonlar",
   "building_regulations": "Qurilish reglamentlari",
+  "srn": "SMETA-RESURS NORMALARI",
+  "product_certificate": "MAHSULOTLARNI SERTIFIKATLASHTIRISH ORGANI", 
   "discussions": "Muhokamalar",
   "activity": "Faoliyat",
   "classifier": "Klassifikator",
@@ -40,7 +42,7 @@
   "cooperation": "Xalqaro hamkorlik",
   "seminar": "Seminar, ko‘rgazmalar",
   "social_networks": "Ijtimoiy tarmoqlar",
-  "address": "Toshkent shahar, Shayxontohur tumani, Abay ko’chasi 6A-Bino",
+  "address": "Toshkent viloyati, Yuqori Chirchiq tumani, Yangi Toshkent hududi",
   "institut_desc": "Qurilish sohasida texnik me'yorlar, shaharsozlik normalari, reglamentlar va standartlar",
   "fullname": "FIO",
   "send_request": "Murojaat yuborish",
@@ -53,5 +55,6 @@
   "check_text": "Matnda xatolik topdingizmi? Sichqoncha bilan belgilab, Ctrl+Enter tugmalarini bosing",
   "technical_regulations": "Texnik reglamentlar",
   "management_system": "Menejment tizimlarini sertifikatlashtirish organi",
-  "anti-corruption": "korrupsiyaga qarshi kurashish"
+  "anti-corruption": "korrupsiyaga qarshi kurashish",
+  "energy_audit": "Energiya audit"
 }

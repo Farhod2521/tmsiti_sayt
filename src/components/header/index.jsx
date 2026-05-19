@@ -19,9 +19,9 @@ const Header = ({ selectingLanguage }) => {
               />
               <Link
                 className={"text-[12px] md:text-base"}
-                href={"tel:+998 71 244-51-84"}
+                href={"tel:+998 55 900-00-59"}
               >
-                +998 71 244-51-84
+                +998 55 900-00-59
               </Link>
             </div>
 

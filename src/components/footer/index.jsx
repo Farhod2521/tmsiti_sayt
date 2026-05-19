@@ -194,8 +194,8 @@ const Footer = () => {
                     <p>{t("address")}</p>
                   </li>
                   <li className={" text-base  mb-[10px]"}>
-                    <Link href={"tel:+998 71 244-51-84"}>
-                      {t("phone")}: +998 71 244-51-84
+                    <Link href={"tel:+998 55 900-00-59"}>
+                      {t("phone")}: +998 55 900-00-59
                     </Link>{" "}
                     <br />
                   </li>

@@ -14,7 +14,7 @@
   "all_news": "All news",
   "news": "News",
   "structure": "Constituent units",
-  "vacancies": "Vacancies",
+  "vacancies": "Onlayn Test",
   "about_us": "About us",
   "homepage": "Homepage",
   "receptionDays": "Reception days",
@@ -27,6 +27,8 @@
   "documents": "Normative documents",
   "laws": "Laws, decrees and decrees",
   "building_regulations": "Building regulations",
+  "srn": "ESTIMATE-RESOURCE NORMS",
+  "product_certificate": "PRODUCT CERTIFICATION BODY", 
   "discussions": "Discussions",
   "activity": "Activity",
   "classifier": "Classifier",
@@ -39,7 +41,7 @@
   "cooperation": "International cooperation",
   "seminar": "Seminar, exhibitions",
   "social_networks": "Social Networks",
-  "address": "Toshkent shahar, Shayxontohur tumani, Abay ko’chasi 6A-Bino",
+  "address": "Tashkent Region, Upper Chirchiq District, Yangi Tashkent area",
   "institut_desc": "Technical norms, urban planning norms, regulations and standards in the field of construction",
   "fullname": "Fullname",
   "send_request": "Send request",
@@ -52,5 +54,6 @@
   "check_text": "Found an error in the text? Select with the mouse press Ctrl+Enter",
   "technical_regulations": "Technical regulations",
   "management_system": "Management systems certification body",
-  "anti-corruption": "fighting against corruption"
+  "anti-corruption": "fighting against corruption",
+  "energy_audit": "Energiya audit"
 }

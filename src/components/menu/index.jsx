@@ -90,7 +90,7 @@ export const menuData = [
       },
       {
         id: 5,
-        title: "SMETA-RESURS NORMALARI",
+        title: "srn", 
         url: "/srn",
       },
       {
@@ -103,6 +103,7 @@ export const menuData = [
         title: "reference",
         url: "/reference",
       },
+
       // {
       //   id: 8,
       //   title: "discussions",
@@ -138,6 +139,17 @@ export const menuData = [
         id: 3,
         title: "lab",
         url: "https://sites.google.com/view/kompleks-sinov-laboratoriyasi/%D0%B3%D0%BB%D0%B0%D0%B2%D0%BD%D0%B0%D1%8F-%D1%81%D1%82%D1%80%D0%B0%D0%BD%D0%B8%D1%86%D0%B0",
+      },
+      
+      {
+        id: 4,
+        title: "product_certificate",
+        url: "https://sites.google.com/d/1MRWBr-pa4muu5UhnPvrhCJVu7wvhg7ee/p/1dMyDDCVi3X5_KfeDPsaSfIj2nnWzC5e2/edit",
+      },
+      {
+        id: 8,
+        title: "energy_audit",
+        url: "/energy-audit",
       },
     ],
   },

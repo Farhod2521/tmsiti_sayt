@@ -65,14 +65,14 @@ const Card = ({
             {t("receptionDays")}: {receptionDays}
           </p>
           {/* Telefon raqam */}
-          <div className={"text-center md:text-start mt-[10px]"}>
+          {/* <div className={"text-center md:text-start mt-[10px]"}>
             <Link
               className={"lg:text-base md:text-sm text-xs text-[#001A57] "}
               href={`tel:${phone}`}
             >
               {t("phone")}: {phone}
             </Link>{" "}
-          </div>
+          </div> */}
 
           {/* Mail pochta */}
           <div className={"text-center md:text-start mt-[10px]"}>
@@ -84,13 +84,13 @@ const Card = ({
             </Link>
           </div>
           {/* Bachelor */}
-          <p
+          {/* <p
             className={
               " lg:text-base md:text-sm text-xs mt-[10px] text-center md:text-start "
             }
           >
             {t("bachelor")}: {bachelor}
-          </p>
+          </p> */}
           {/* Master */}
           <p
             className={

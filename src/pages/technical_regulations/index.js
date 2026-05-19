@@ -1,35 +1,30 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Main from "@/layouts/main";
 import Menu from "@/components/menu";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import Title from "@/components/title";
-import useGetTMSITIQuery from "@/hooks/api/useGetTMSITIQuery";
-import { KEYS } from "@/constants/key";
-import { URLS } from "@/constants/url";
-import { get, indexOf, nth } from "lodash";
-import parse from "html-react-parser";
-import { useSettingsStore } from "@/store";
 import { useTranslation } from "react-i18next";
-import ContentLoader from "@/components/loader/content-loader";
 
 const Index = () => {
   const { t } = useTranslation();
-  const language = useSettingsStore((state) => get(state, "lang", ""));
-  const { data, isLoading, isFetching } = useGetTMSITIQuery({
-    key: KEYS.buildingRegulations,
-    url: URLS.buildingRegulations,
-  });
+  const [regulations, setRegulations] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  if (isLoading || isFetching) {
-    return (
-      <Main>
-        <ContentLoader />
-      </Main>
-    );
-  }
+  useEffect(() => {
+    // API dan ma'lumotlarni olish
+    const fetchData = async () => {
+      try {
+        const response = await fetch("https://main.tmsiti.uz/api/texnik-reglament/");
+        const data = await response.json();
+        setRegulations(data);
+        setIsLoading(false);
+      } catch (error) {
+        console.error("API dan ma'lumot olishda xatolik:", error);
+        setIsLoading(false);
+      }
+    };
 
-  console.log(indexOf(get(data, "data", []), 5));
+    fetchData();
+  }, []);
 
   return (
     <Main>
@@ -51,39 +46,55 @@ const Index = () => {
           "grid grid-cols-12 container mx-auto mb-[50px] px-[20px] md:px-0"
         }
       >
-        <div
-          className={"col-span-12 px-[20px] md:px-[15px] lg:px-[10px] xl:px-0"}
-        >
-          <motion.div
-            initial={{ translateX: "-200px" }}
-            animate={{ translateX: "0px" }}
-            transition={{ duration: 0.3 }}
-          >
-            <Title>
-              {language === "uz"
-                ? get(nth(get(data, "data", []), 4), "title_uz")
-                : language === "ru"
-                ? get(nth(get(data, "data", []), 4), "title_ru")
-                : language === "en"
-                ? get(nth(get(data, "data", []), 4), "title_en")
-                : get(nth(get(data, "data", []), 4), "title_uz")}
-            </Title>
-          </motion.div>
-
-          <div
-            className={
-              "col-span-10  shadow-xl border-[1px] p-10 rounded-[8px] mb-[10px]"
-            }
-          >
-            {language === "uz"
-              ? parse(get(nth(get(data, "data", []), 4), "text_uz", ""))
-              : language === "ru"
-              ? parse(get(nth(get(data, "data", []), 4), "text_ru", ""))
-              : language === "en"
-              ? parse(get(nth(get(data, "data", []), 4), "text_en", ""))
-              : parse(get(nth(get(data, "data", []), 4), "text_uz", ""))}
+        <h1 className="col-span-12 text-3xl mb-4 font-semibold">
+          {t("technical_regulations")}
+        </h1>
+        
+        {isLoading ? (
+          <div className="col-span-12 text-center py-8">
+            <p>Ma'lumotlar yuklanmoqda...</p>
           </div>
-        </div>
+        ) : (
+          <table className="col-span-12 mt-2 border-collapse border border-gray-300 w-full text-left">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="border border-gray-300 px-4 py-2 text-center">
+                  №
+                </th>
+            
+                <th className="border border-gray-300 px-4 py-2 ">
+                Texnik reglamentlari nomi
+                </th>
+                <th className="border border-gray-300 text-center px-4 py-2 ">
+                Hujjat
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {regulations.map((doc, docIndex) => (
+                <tr key={docIndex} className="border border-gray-300">
+                  <td className="border border-gray-300 px-4 py-2 text-center">
+                    {docIndex + 1}
+                  </td>
+                
+                  <td className="border border-gray-300 px-4 py-2 ">
+                    {doc.name_uz}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2  text-center">
+                    <a
+                      href={doc.pdf_uz || "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 underline"
+                    >
+                     Ko'rish
+                    </a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </section>
     </Main>
   );

@@ -18,12 +18,11 @@ import "swiper/css";
 import "swiper/css/navigation";
 import { useSettingsStore } from "@/store";
 import { config } from "@/config";
-import lang from "@/components/lang";
 import { useTranslation } from "react-i18next";
 
 export default function Home() {
   const controls = useAnimation();
-
+  
   const { t } = useTranslation();
   const lang = useSettingsStore((state) =>
     get(state, "lang", config.DEFAULT_APP_LANG)
@@ -42,15 +41,15 @@ export default function Home() {
     (item) => get(item, "news_in_reel") === true
   );
 
-  console.log(NewsInReel);
-
   const { data: discussion, isLoading: isLoadingDiscuss } = useGetTMSITIQuery({
     url: URLS.discuss,
     key: KEYS.discuss,
   });
 
   return (
+    
     <Main>
+      
       <Menu active={0} className={"relative z-30 !mb-0"} />
 
       <section
@@ -138,8 +137,6 @@ export default function Home() {
           transition={{ delay: 1 }}
           className={"md:col-span-6 md:block hidden"}
         >
-          {/*<ImageGallery items={images} infinite showPlayButton />*/}
-
           <Swiper
             loop={true}
             centeredSlides={true}
@@ -219,7 +216,6 @@ export default function Home() {
             }
           >
             {get(discussion, "data.results", []).map((item) => (
-              // eslint-disable-next-line react/jsx-key
               <SwiperSlide key={get(item, "id")}>
                 <div
                   className={
@@ -228,7 +224,7 @@ export default function Home() {
                 >
                   <div>
                     <h4 className={"text-sm md:text-xs lg:text-base"}>
-                      Muhokamalar
+                      {t("discussions")}
                     </h4>
                     <p
                       className={
@@ -290,7 +286,6 @@ export default function Home() {
             }
           >
             {get(discussion, "data.results", []).map((item) => (
-              // eslint-disable-next-line react/jsx-key
               <SwiperSlide key={get(item, "id")}>
                 <div
                   className={
@@ -299,7 +294,7 @@ export default function Home() {
                 >
                   <div>
                     <h4 className={"text-sm md:text-base text-[#001A57]"}>
-                      Muhokamalar
+                      {t("discussions")}
                     </h4>
                     <p
                       className={
@@ -312,8 +307,6 @@ export default function Home() {
                     </p>
                   </div>
 
-                  {/*<div className={"w-full h-[1px] bg-white"}></div>*/}
-
                   <div className={""}>
                     <Link
                       href={`/discussion/${get(item, "id", "")}`}
@@ -325,13 +318,6 @@ export default function Home() {
                         {get(item, "shnk_number")} - {get(item, "shnk_title")}
                       </h4>
                     </Link>
-                    {/*<p*/}
-                    {/*  className={*/}
-                    {/*    "text-xs md:text-base line-clamp-2 md:line-clamp-none text-[#002D97] mt-[10px]"*/}
-                    {/*  }*/}
-                    {/*>*/}
-                    {/*  {get(item, "shnk_description")}*/}
-                    {/*</p>*/}
                   </div>
                 </div>
               </SwiperSlide>
@@ -469,63 +455,6 @@ export default function Home() {
                   </motion.li>
                 ))
               )}
-
-              {/*{slice(*/}
-              {/*  drop(*/}
-              {/*    get(data, "data.results", []).map((item) => (*/}
-              {/*      <motion.li*/}
-              {/*        initial={{ translateX: 100, opacity: 0 }}*/}
-              {/*        animate={{ translateX: 0, opacity: 1 }}*/}
-              {/*        key={get(item, "id")}*/}
-              {/*        className={"col-span-12"}*/}
-              {/*      >*/}
-              {/*        <div*/}
-              {/*          className={*/}
-              {/*            "md:grid md:grid-cols-6 flex gap-x-[30px] flex-col-reverse"*/}
-              {/*          }*/}
-              {/*        >*/}
-              {/*          <div className={"md:col-span-3"}>*/}
-              {/*            <p*/}
-              {/*              className={*/}
-              {/*                "text-[#2E6DFF] lg:text-sm md:text-xs text-sm mb-[20px] font-bold"*/}
-              {/*              }*/}
-              {/*            >*/}
-              {/*              Yangilik{" "}*/}
-              {/*              {dayjs(get(item, "news_datetime")).format(*/}
-              {/*                "DD.MM.YYYY",*/}
-              {/*              )}*/}
-              {/*            </p>*/}
-              {/*            <Link href={`/news/${get(item, "id")}`}>*/}
-              {/*              <h2*/}
-              {/*                className={*/}
-              {/*                  "xl:text-xl lg:text-base md:text-sm text-base  hover:text-[#2E6DFF] hover:underline font-bold lg:line-clamp-5 md:line-clamp-4 line-clamp-3"*/}
-              {/*                }*/}
-              {/*              >*/}
-              {/*                {get(item, "news_title")}*/}
-              {/*              </h2>*/}
-              {/*            </Link>*/}
-              {/*          </div>*/}
-
-              {/*          <div className={"md:col-span-3 md:w-[330px]"}>*/}
-              {/*            <img*/}
-              {/*              src={get(item, "news_image")}*/}
-              {/*              alt={"news-img"}*/}
-              {/*              className={*/}
-              {/*                "md:w-full lg:h-[189px]   object-cover mb-[10px] md:mb-0"*/}
-              {/*              }*/}
-              {/*            />*/}
-              {/*          </div>*/}
-              {/*        </div>*/}
-
-              {/*        <div*/}
-              {/*          className={"w-full h-[1px] bg-gray-900 my-[30px]"}*/}
-              {/*        ></div>*/}
-              {/*      </motion.li>*/}
-              {/*    )),*/}
-              {/*  ),*/}
-              {/*  0,*/}
-              {/*  3,*/}
-              {/*)}*/}
             </ul>
           </div>
         </div>
