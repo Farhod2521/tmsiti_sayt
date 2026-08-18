@@ -3,6 +3,7 @@ import Menu from "@/components/menu";
 import Image from "next/image";
 import Link from "next/link";
 import Title from "@/components/title";
+import RightIcon from "@/components/icons/right";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, Pagination, Navigation, A11y } from "swiper/modules";
 import useGetTMSITIQuery from "@/hooks/api/useGetTMSITIQuery";
@@ -52,148 +53,89 @@ export default function Home() {
       
       <Menu active={0} className={"relative z-30 !mb-0"} />
 
-      <section
-        className={
-          "container mx-auto grid grid-cols-12 gap-x-[30px] items-center"
-        }
-      >
-        <div className={"col-span-12 md:col-span-6"}>
-          <div
-            className={
-              "relative h-[450px] md:h-auto md:before:bg-none flex justify-center text-center before:absolute md:before:object-none before:opacity-60   before:inset-0 before:bg-pattern md:text-start before:object-cover before:h-[450px]"
-            }
-          >
-            <motion.h1
-              initial={{ scale: 0.01 }}
-              transition={{ delay: 0.3 }}
-              animate={{ scale: 1 }}
-              className={
-                "  md:px-0 md:text-[30px] lg:text-[45px] xl:text-[64px] relative top-[100px] md:top-0 text-[45px] text-[#14255B] font-bold md:mb-[60px] lg:mb-[90px] mb-[50px]"
-              }
-            >
-              {t("hymn")}
-            </motion.h1>
-          </div>
+      <section className={"w-full bg-[#EAF4FC]"}>
+        <div
+          className={
+            "relative w-full aspect-[1825/862]"
+          }
+        >
+          <Image
+            src={"/images/homepagebac.png"}
+            alt={"hero-bg"}
+            fill
+            priority
+            sizes={"100vw"}
+            className={"object-cover object-center select-none pointer-events-none"}
+          />
 
           <div
             className={
-              "flex flex-col md:flex-row lg:gap-x-[30px] md:gap-x-[20px] relative  md:px-0"
+              "absolute inset-0 flex flex-col justify-center gap-y-[2.5%] pl-[4%] pr-[46%]"
             }
           >
+            <motion.div
+              initial={{ scale: 0.01 }}
+              transition={{ delay: 0.3 }}
+              animate={{ scale: 1 }}
+              className={"bg-white/70 backdrop-blur-[1px] rounded-[6px] px-[3%] py-[2%] w-fit"}
+            >
+              <h1
+                className={
+                  "w-[46vw] sm:w-[38vw] md:w-[30vw] text-[4.4vw] sm:text-[3.6vw] md:text-[2.8vw] leading-[1.15] text-[#14255B] font-bold"
+                }
+              >
+                {t("hymn")}
+              </h1>
+            </motion.div>
+
             <motion.div
               initial={{ scale: 0.01 }}
               transition={{ delay: 0.5 }}
               animate={{ scale: 1 }}
               className={
-                "px-[20px] md:px-0   md:border-t-[1px] border-t-[0px]  border-[#14255B]"
+                "bg-white/70 backdrop-blur-[1px] rounded-[6px] px-[3%] py-[2%] w-fit flex gap-x-[6%]"
               }
             >
-              <Link
-                href={"/shnq"}
-                className={"uppercase text-[#2E6DFF] text-xs md:text-sm"}
-              >
-                {t("SHNQ")}
-              </Link>
+              <div className={"pt-[4%] border-t-[1px] border-[#14255B]"}>
+                <Link
+                  href={"/shnq"}
+                  className={"block uppercase text-[#2E6DFF] text-[1.6vw] sm:text-[1.3vw] md:text-[0.9vw] leading-none"}
+                >
+                  {t("SHNQ")}
+                </Link>
 
-              <Link
-                href={"/shnq"}
-                className={
-                  "text-[#001A57] hover:text-[#5D84CB] hover:underline md:text-base lg:text-xl  text-base font-bold transition-all duration-400"
-                }
-              >
-                <p>{t("shnq")}</p>
-              </Link>
-            </motion.div>
+                <Link
+                  href={"/shnq"}
+                  className={
+                    "flex items-center gap-x-[4px] text-[#001A57] hover:text-[#5D84CB] hover:underline text-[2.2vw] sm:text-[1.8vw] md:text-[1.25vw] leading-[1.2] font-bold transition-all duration-400"
+                  }
+                >
+                  <span>{t("shnq")}</span>
+                  <RightIcon color={"#2E6DFF"} classname={"w-[1.2vw] h-[1.2vw] min-w-[10px] min-h-[10px] shrink-0"} />
+                </Link>
+              </div>
 
-            <motion.div
-              initial={{ scale: 0.01 }}
-              transition={{ delay: 0.7 }}
-              animate={{ scale: 1 }}
-              className={
-                "px-[20px] md:px-0 md:border-t-[1px] border-t-[0px] border-[#14255B]"
-              }
-            >
-              <Link
-                href={"/standards"}
-                className={"uppercase text-[#2E6DFF] text-xs md:text-sm "}
-              >
-                {t("standards")}
-              </Link>
+              <div className={"pt-[4%] border-t-[1px] border-[#14255B]"}>
+                <Link
+                  href={"/standards"}
+                  className={"block uppercase text-[#2E6DFF] text-[1.6vw] sm:text-[1.3vw] md:text-[0.9vw] leading-none"}
+                >
+                  {t("standards")}
+                </Link>
 
-              <Link
-                href={"/standards"}
-                className={
-                  "text-[#001A57] hover:text-[#5D84CB] hover:underline md:text-base lg:text-xl text-base font-bold transition-all duration-400"
-                }
-              >
-                <p>{t("standards_desc")}</p>
-              </Link>
+                <Link
+                  href={"/standards"}
+                  className={
+                    "flex items-center gap-x-[4px] text-[#001A57] hover:text-[#5D84CB] hover:underline text-[2.2vw] sm:text-[1.8vw] md:text-[1.25vw] leading-[1.2] font-bold transition-all duration-400"
+                  }
+                >
+                  <span>{t("standards_desc")}</span>
+                  <RightIcon color={"#2E6DFF"} classname={"w-[1.2vw] h-[1.2vw] min-w-[10px] min-h-[10px] shrink-0"} />
+                </Link>
+              </div>
             </motion.div>
           </div>
         </div>
-        <motion.div
-          initial={{ translateX: 500, opacity: 0.001 }}
-          animate={{ translateX: 0, opacity: 1 }}
-          transition={{ delay: 1 }}
-          className={"md:col-span-6 md:block hidden"}
-        >
-          <Swiper
-            loop={true}
-            centeredSlides={true}
-            autoplay={{ delay: 3000, disableOnInteraction: false }}
-            modules={[Autoplay, Pagination, Navigation]}
-          >
-            <SwiperSlide className={"swiper-slide"}>
-              <Image
-                src={"/images/img.png"}
-                alt={"bg-img"}
-                className={"lg:w-[945px] lg:h-[734px] w-[500px] h-[400px]"}
-                width={945}
-                height={734}
-              />
-            </SwiperSlide>
-
-            <SwiperSlide>
-              <Image
-                src={"/images/bg-img1.jpg"}
-                alt={"bg-img1"}
-                className={"lg:w-[945px] lg:h-[734px] w-[500px] h-[400px]"}
-                width={945}
-                height={734}
-              />
-            </SwiperSlide>
-
-            <SwiperSlide>
-              <Image
-                src={"/images/bg-img5.jpg"}
-                alt={"bg-img2"}
-                className={"lg:w-[945px] lg:h-[734px] w-[500px] h-[400px]"}
-                width={945}
-                height={734}
-              />
-            </SwiperSlide>
-
-            <SwiperSlide>
-              <Image
-                src={"/images/bg-img3.jpg"}
-                alt={"bg-img3"}
-                className={"lg:w-[945px] lg:h-[734px] w-[500px] h-[400px]"}
-                width={945}
-                height={734}
-              />
-            </SwiperSlide>
-
-            <SwiperSlide>
-              <Image
-                src={"/images/bg-img4.jpg"}
-                alt={"bg-img4"}
-                className={"lg:w-[945px] lg:h-[734px] w-[500px] h-[400px]"}
-                width={945}
-                height={734}
-              />
-            </SwiperSlide>
-          </Swiper>
-        </motion.div>
       </section>
 
       {/*desktop version*/}
