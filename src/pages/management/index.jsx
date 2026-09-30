@@ -19,13 +19,6 @@ import {
   PhoneIcon,
 } from "@/components/icons/docs";
 
-// API'dagi rasmlar kichik va oq fonli — shu xodimlar uchun sifatli rasmlar
-const localPhotos = {
-  1: "/images/management/worker-1.jpg",
-  5: "/images/management/worker-5.jpg",
-  6: "/images/management/worker-6.jpg",
-};
-
 // Lavozim bo'yicha qisqa tavsif (API'da yo'q)
 const descriptions = {
   1: "Institut faoliyatini umumiy boshqarish, strategik rivojlanish, ilmiy-tadqiqot yo'nalishlari va xalqaro hamkorlik aloqalarini muvofiqlashtirish.",
@@ -44,8 +37,8 @@ const receptionDays = {
 
 const cardShadow = "shadow-[0_10px_40px_rgba(16,42,116,0.07)]";
 
-const getPhoto = (item) =>
-  localPhotos[get(item, "id")] || get(item, "worker_image");
+// Rasm faqat admin paneldan (API) olinadi
+const getPhoto = (item) => get(item, "worker_image");
 
 const getReception = (item) => {
   const day = get(item, "worker_reception_day");
@@ -55,25 +48,37 @@ const getReception = (item) => {
   };
 };
 
-const Photo = ({ item, className }) => (
-  <div
-    className={clsx(
-      "relative overflow-hidden rounded-[14px] bg-gradient-to-br from-[#DCE8FA] via-[#EEF4FD] to-[#CFDFF7]",
-      className
-    )}
-  >
-    {getPhoto(item) && (
-      <Image
-        src={getPhoto(item)}
-        alt={get(item, "worker_name", "")}
-        fill
-        unoptimized
-        sizes={"300px"}
-        className={"object-cover object-top"}
-      />
-    )}
-  </div>
-);
+const Photo = ({ item, className }) => {
+  const src = getPhoto(item);
+  const [failed, setFailed] = useState(false);
+  return (
+    <div
+      className={clsx(
+        "relative overflow-hidden rounded-[14px] bg-gradient-to-br from-[#DCE8FA] via-[#EEF4FD] to-[#CFDFF7]",
+        className
+      )}
+    >
+      {src && !failed ? (
+        // Oq fonli rasmlar gradient fon bilan qo'shilib ketishi uchun multiply
+        <img
+          src={src}
+          alt={get(item, "worker_name", "")}
+          onError={() => setFailed(true)}
+          className={
+            "absolute inset-0 w-full h-full object-cover object-top mix-blend-multiply"
+          }
+        />
+      ) : (
+        <Image
+          src={"/icons/brand.svg"}
+          alt={"TMSITI"}
+          fill
+          className={"object-contain p-10 opacity-90"}
+        />
+      )}
+    </div>
+  );
+};
 
 const PostBadge = ({ children, large }) => (
   <span

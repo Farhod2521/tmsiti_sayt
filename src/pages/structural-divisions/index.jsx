@@ -26,12 +26,6 @@ import {
 } from "@/components/icons/docs";
 import { ArrowRightIcon } from "@/components/icons/home";
 
-// API'dagi rasm kichik bo'lgan xodimlar uchun sifatli rasmlar
-const localPhotos = {
-  4: "/images/structural/4.jpg",
-  5: "/images/structural/5.jpg",
-};
-
 // Bo'linma turi va faoliyat yo'nalishi API'da yo'q — lavozim nomidan aniqlanadi
 const unitTypes = [
   { id: "boshqarma", label: "Boshqarma", pattern: /boshqarma/i },
@@ -74,7 +68,8 @@ const pick = (item, field, language) =>
 
 const isLogo = (url = "") => /TMSITI_Logo/i.test(url);
 
-const getPhoto = (item) => localPhotos[get(item, "id")] || get(item, "image");
+// Rasm faqat admin paneldan (API) olinadi
+const getPhoto = (item) => get(item, "image");
 
 // "Standartlashtirish boshqarmasi boshlig'i" → "Standartlashtirish boshqarmasi"
 const getUnitName = (position = "") =>

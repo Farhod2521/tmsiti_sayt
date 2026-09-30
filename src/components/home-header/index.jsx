@@ -145,22 +145,13 @@ const HomeHeader = () => {
             height={66}
             className={"w-[46px] h-[50px] lg:w-[62px] lg:h-[66px]"}
           />
-          <div className={"leading-none"}>
-            <span
-              className={
-                "block text-[#0B1A4F] font-extrabold text-[22px] lg:text-[28px] tracking-tight"
-              }
-            >
-              TMSITI
-            </span>
-            <span
-              className={
-                "hidden sm:block mt-1 max-w-[190px] text-[12px] lg:text-[13px] leading-[1.2] text-[#1E2B5A]"
-              }
-            >
-              {t("company_name")}
-            </span>
-          </div>
+          <span
+            className={
+              "text-[#0B1A4F] font-extrabold text-[24px] lg:text-[30px] leading-none tracking-tight"
+            }
+          >
+            TMSITI
+          </span>
         </Link>
 
         <nav className={"hidden xl:block"}>
@@ -238,7 +229,7 @@ const HomeHeader = () => {
           <Link
             href={"/contact"}
             className={
-              "hidden 2xl:flex items-center gap-x-3 h-[50px] px-6 rounded-[14px] bg-[#102C79] text-white text-[15px] font-semibold shadow-[0_10px_24px_rgba(16,44,121,0.25)] hover:bg-[#0B2263] transition-colors whitespace-nowrap"
+              "hidden xl:flex items-center gap-x-3 h-[50px] px-6 rounded-[14px] bg-[#102C79] text-white text-[15px] font-semibold shadow-[0_10px_24px_rgba(16,44,121,0.25)] hover:bg-[#0B2263] transition-colors whitespace-nowrap"
             }
           >
             {t("home.contact_us")}
