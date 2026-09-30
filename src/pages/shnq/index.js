@@ -1,78 +1,191 @@
-import React from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Main from "@/layouts/main";
 import Menu from "@/components/menu";
 import Link from "next/link";
-import { get } from "lodash";
+import Image from "next/image";
+import clsx from "clsx";
 import { useTranslation } from "react-i18next";
-import ContentLoader from "@/components/loader/content-loader";
-import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-import { useSettingsStore } from "@/store";
-import SnowAnimation from "@/components/SnowAnimation";
+import ContentLoader from "@/components/loader/content-loader";
+import { Checkbox, CountBadge } from "@/components/filter-controls";
+import {
+  BuildingsIcon,
+  BusIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  DownloadIcon,
+  ExternalLinkIcon,
+  EyeIcon,
+  FileSearchIcon,
+  FileTextIcon,
+  FilterIcon,
+  GridIcon,
+  HomesIcon,
+  LayersIcon,
+  LeafIcon,
+  LinkIcon,
+  ListIcon,
+  MoreVerticalIcon,
+  SearchIcon,
+  StarIcon,
+  TrashIcon,
+  UsersIcon,
+} from "@/components/icons/docs";
+
+const MEDIA_URL = "https://main.tmsiti.uz/media/";
+
+const documentTypes = [
+  { id: "shnq", label: "SHNQ" },
+  { id: "qmq", label: "QMQ" },
+  { id: "boshqa", label: "Boshqa" },
+];
+
+const subsystems = [
+  { id: "1", label: "Tashkiliy va uslubiy normalar" },
+  { id: "2", label: "Texnik loyihalash me'yorlari" },
+  { id: "3", label: "Tashkil etish qoidalari va texnologiyasi" },
+];
+
+// Sektor API'da yo'q — guruh nomi va hujjat nomidagi kalit so'zlar orqali aniqlanadi
+const sectors = [
+  {
+    id: "qurilish",
+    label: "Qurilish",
+    pattern: /қурилиш|строител/i,
+    Icon: BuildingsIcon,
+    iconClass: "bg-[#FDECEC] text-[#E5484D]",
+  },
+  {
+    id: "turar_joy",
+    label: "Turar joy",
+    pattern: /турар\s*жой|жил(ой|ых|ищ)/i,
+    Icon: HomesIcon,
+    iconClass: "bg-[#F1ECFD] text-[#7C5CE0]",
+  },
+  {
+    id: "ekologiya",
+    label: "Ekologiya",
+    pattern: /эколог|атроф[- ]муҳит|муҳофаза|окружающ/i,
+    Icon: LeafIcon,
+    iconClass: "bg-[#E6F6EC] text-[#22A35B]",
+  },
+  {
+    id: "shaharsozlik",
+    label: "Shaharsozlik",
+    pattern: /шаҳарсозлик|шахарсозлик|градостро/i,
+    Icon: BuildingsIcon,
+    iconClass: "bg-[#FFF1E4] text-[#F08A24]",
+  },
+  {
+    id: "transport",
+    label: "Transport",
+    pattern: /транспорт|йўл|автомобил|кўприк|дорог/i,
+    Icon: BusIcon,
+    iconClass: "bg-[#E8F0FE] text-[#2B5CD9]",
+  },
+];
+
+const sortOptions = [
+  { id: "relevance", label: "Relevantlik bo'yicha" },
+  { id: "newest", label: "Avval yangilari" },
+  { id: "oldest", label: "Avval eskilari" },
+  { id: "code", label: "Shifr bo'yicha" },
+];
+
+const getDocType = (designation = "") => {
+  if (/ШНҚ|ШНК|SHNQ/i.test(designation)) return "shnq";
+  if (/ҚМҚ|QMQ/i.test(designation)) return "qmq";
+  return "boshqa";
+};
+
+const splitDesignation = (designation = "") => {
+  const match = designation.match(/^\s*(ШНҚ|ШНК|ҚМҚ|SHNQ|QMQ)\s*(.*)$/i);
+  if (!match) return { label: "", number: designation };
+  const type = getDocType(match[1]);
+  return { label: type === "qmq" ? "QMQ" : "SHNQ", number: match[2] };
+};
+
+const getYear = (designation = "") => {
+  const match = designation.match(/-(\d{2}|\d{4})\s*\*?\s*$/);
+  if (!match) return null;
+  const value = Number(match[1]);
+  if (match[1].length === 4) return value;
+  return value >= 50 ? 1900 + value : 2000 + value;
+};
+
+const getSectors = (doc, groupTitle = "") => {
+  const text = `${groupTitle} ${doc.name_uz || ""} ${doc.name_ru || ""}`;
+  return sectors.filter((s) => s.pattern.test(text)).map((s) => s.id);
+};
+
+const getPdfUrl = (doc) =>
+  doc.pdf_uz
+    ? `${MEDIA_URL}${doc.pdf_uz}`
+    : doc.pdf_ru
+    ? `${MEDIA_URL}${doc.pdf_ru}`
+    : null;
+
+const isSrnDoc = (doc) => !!doc.url && doc.url.includes("tmsiti.uz/srn");
+const isLexDoc = (doc) => !!doc.url && doc.url.includes("lex.uz");
+
+const countDocs = (items = []) =>
+  items.reduce(
+    (sum, item) =>
+      sum +
+      (item.groups || []).reduce(
+        (acc, group) => acc + (group.documents || []).length,
+        0
+      ),
+    0
+  );
+
+const filterDocs = (items, predicate) =>
+  items
+    .map((item) => {
+      const groups = (item.groups || [])
+        .map((group) => {
+          const documents = (group.documents || []).filter((doc) =>
+            predicate(doc, group)
+          );
+          return documents.length > 0 ? { ...group, documents } : null;
+        })
+        .filter(Boolean);
+      return groups.length > 0 ? { ...item, groups } : null;
+    })
+    .filter(Boolean);
+
+const cardShadow = "shadow-[0_8px_30px_rgba(16,42,116,0.06)]";
 
 const Index = () => {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState('yangi');
-  const [viewMode, setViewMode] = useState('list');
-  const [searchQuery, setSearchQuery] = useState('');
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState("yangi");
+  const [viewMode, setViewMode] = useState("list");
+  const [sortBy, setSortBy] = useState("relevance");
+  const [searchQuery, setSearchQuery] = useState("");
   const [favorites, setFavorites] = useState(new Set());
   const [dataShnq, setDataShnq] = useState(null);
-  const [filteredData, setFilteredData] = useState(null);
-  const language = useSettingsStore((state) => get(state, "lang", ""));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [openItems, setOpenItems] = useState({});
   const [openGroups, setOpenGroups] = useState({});
-  const router = useRouter();
+  const [openActions, setOpenActions] = useState(null);
+  const actionsRef = useRef(null);
   const [selectedFilters, setSelectedFilters] = useState({
     hujjatTurlari: [],
     quyiTizimlar: [],
-    sektorlar: []
+    sektorlar: [],
   });
 
   const isFourthSectionTitle = (title = "") => /^\s*0?4\s*[-–.]/.test(title);
 
-  const removeFourthGroup = (items = []) =>
-    items.filter((item) => !isFourthSectionTitle(item?.title || ""));
-
   // LocalStorage'dan saqlangan hujjatlarni olish
   useEffect(() => {
-    const savedFavorites = localStorage.getItem('shnq_favorites');
+    const savedFavorites = localStorage.getItem("shnq_favorites");
     if (savedFavorites) {
-      const favoritesArray = JSON.parse(savedFavorites);
-      setFavorites(new Set(favoritesArray));
+      setFavorites(new Set(JSON.parse(savedFavorites)));
     }
   }, []);
-
-  // Favorites o'zgarganda localStorage'ga saqlash
-  const saveFavoritesToLocalStorage = (favoritesSet) => {
-    const favoritesArray = Array.from(favoritesSet);
-    localStorage.setItem('shnq_favorites', JSON.stringify(favoritesArray));
-  };
-
-  const toggleFavorite = (designation, e) => {
-    if (e) e.stopPropagation();
-    
-    setFavorites(prev => {
-      const newFavorites = new Set(prev);
-      if (newFavorites.has(designation)) {
-        newFavorites.delete(designation);
-      } else {
-        newFavorites.add(designation);
-      }
-      // Darhol localStorage'ga saqlash
-      saveFavoritesToLocalStorage(newFavorites);
-      return newFavorites;
-    });
-  };
-
-  // "Mening hujjatlarim" tab'ida barcha saqlanganlarni o'chirish
-  const clearAllFavorites = () => {
-    if (window.confirm("Hamma saqlangan hujjatlarni o'chirishni istaysizmi?")) {
-      setFavorites(new Set());
-      localStorage.removeItem('shnq_favorites');
-    }
-  };
 
   useEffect(() => {
     fetch("https://shnk.tmsiti.uz/subsystems/")
@@ -84,7 +197,6 @@ const Index = () => {
       })
       .then((result) => {
         setDataShnq(result);
-        setFilteredData(result);
         setLoading(false);
       })
       .catch((err) => {
@@ -93,104 +205,147 @@ const Index = () => {
       });
   }, []);
 
-  // Filtrlash va qidirish funksiyasi
+  // Amallar menyusini tashqariga bosilganda yopish
   useEffect(() => {
-    if (!dataShnq) return;
+    const onClick = (e) => {
+      if (actionsRef.current && !actionsRef.current.contains(e.target)) {
+        setOpenActions(null);
+      }
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
 
-    let result = [...dataShnq];
-    result = removeFourthGroup(result);
+  const baseData = useMemo(
+    () =>
+      (dataShnq || []).filter(
+        (item) => !isFourthSectionTitle(item?.title || "")
+      ),
+    [dataShnq]
+  );
 
-    // Hujjat turlari bo'yicha filtrlash (SHNQ/QMQ)
-    if (selectedFilters.hujjatTurlari.length > 0) {
-      result = result.map(item => {
-        const filteredGroups = item.groups?.map(group => {
-          const filteredDocs = group.documents?.filter(doc => {
-            const designation = doc.designation || '';
-            const isSHNQ = designation.includes('ШНҚ') || designation.includes('ШНК') || designation.includes('SHNQ');
-            const isQMQ = designation.includes('ҚМҚ') || designation.includes('QMQ');
-            
-            if (selectedFilters.hujjatTurlari.includes('shnq') && selectedFilters.hujjatTurlari.includes('qmq')) {
-              return isSHNQ || isQMQ;
-            } else if (selectedFilters.hujjatTurlari.includes('shnq')) {
-              return isSHNQ;
-            } else if (selectedFilters.hujjatTurlari.includes('qmq')) {
-              return isQMQ;
-            }
-            return true;
-          });
-          
-          return filteredDocs?.length > 0 ? { ...group, documents: filteredDocs } : null;
-        }).filter(Boolean);
-        
-        return filteredGroups.length > 0 ? { ...item, groups: filteredGroups } : null;
-      }).filter(Boolean);
-    }
-
-    // Quyi tizimlar bo'yicha filtrlash
-    if (selectedFilters.quyiTizimlar.length > 0) {
-      result = result.filter(item => {
-        const itemTitle = item.title || '';
-        const selectedSystem = selectedFilters.quyiTizimlar[0];
-        return itemTitle.includes(`${selectedSystem}-қуйи`) || itemTitle.includes(`${selectedSystem}-quyi`);
+  const stats = useMemo(() => {
+    const allDocs = baseData.flatMap((item) =>
+      (item.groups || []).flatMap((group) =>
+        (group.documents || []).map((doc) => ({ doc, group }))
+      )
+    );
+    const typeCounts = {};
+    const sectorCounts = {};
+    allDocs.forEach(({ doc, group }) => {
+      const type = getDocType(doc.designation);
+      typeCounts[type] = (typeCounts[type] || 0) + 1;
+      getSectors(doc, group.title).forEach((id) => {
+        sectorCounts[id] = (sectorCounts[id] || 0) + 1;
       });
+    });
+    const subsystemCounts = {};
+    subsystems.forEach(({ id }) => {
+      subsystemCounts[id] = countDocs(
+        baseData.filter((item) => matchesSubsystem(item, id))
+      );
+    });
+    return {
+      total: allDocs.length,
+      categories: baseData.reduce(
+        (sum, item) => sum + (item.groups || []).length,
+        0
+      ),
+      types: Object.keys(typeCounts).length,
+      pdf: allDocs.filter(({ doc }) => getPdfUrl(doc)).length,
+      typeCounts,
+      sectorCounts,
+      subsystemCounts,
+    };
+  }, [baseData]);
+
+  // Filtrlash, qidirish va saralash
+  const filteredData = useMemo(() => {
+    let result = baseData;
+    const { hujjatTurlari, quyiTizimlar, sektorlar } = selectedFilters;
+
+    if (hujjatTurlari.length > 0) {
+      result = filterDocs(result, (doc) =>
+        hujjatTurlari.includes(getDocType(doc.designation))
+      );
     }
 
-    // Qidiruv bo'yicha filtrlash
-    if (searchQuery.trim() !== '') {
+    if (quyiTizimlar.length > 0) {
+      result = result.filter((item) => matchesSubsystem(item, quyiTizimlar[0]));
+    }
+
+    if (sektorlar.length > 0) {
+      result = filterDocs(result, (doc, group) =>
+        getSectors(doc, group.title).some((id) => sektorlar.includes(id))
+      );
+    }
+
+    if (searchQuery.trim() !== "") {
       const query = searchQuery.toLowerCase().trim();
-      result = result.map(item => {
-        const filteredGroups = item.groups?.map(group => {
-          const filteredDocs = group.documents?.filter(doc => {
-            return (
-              (doc.name_uz && doc.name_uz.toLowerCase().includes(query)) ||
-              (doc.name_ru && doc.name_ru.toLowerCase().includes(query)) ||
-              (doc.designation && doc.designation.toLowerCase().includes(query))
-            );
-          });
-          
-          return filteredDocs?.length > 0 ? { ...group, documents: filteredDocs } : null;
-        }).filter(Boolean);
-        
-        return filteredGroups.length > 0 ? { ...item, groups: filteredGroups } : null;
-      }).filter(Boolean);
+      result = filterDocs(
+        result,
+        (doc) =>
+          (doc.name_uz && doc.name_uz.toLowerCase().includes(query)) ||
+          (doc.name_ru && doc.name_ru.toLowerCase().includes(query)) ||
+          (doc.designation && doc.designation.toLowerCase().includes(query))
+      );
     }
 
-    // "Mening hujjatlarim" tab uchun faqat saqlanganlarni ko'rsatish
-    if (activeTab === 'mening') {
-      result = result.map(item => {
-        const filteredGroups = item.groups?.map(group => {
-          const filteredDocs = group.documents?.filter(doc => 
-            favorites.has(doc.designation)
-          );
-          
-          return filteredDocs?.length > 0 ? { ...group, documents: filteredDocs } : null;
-        }).filter(Boolean);
-        
-        return filteredGroups.length > 0 ? { ...item, groups: filteredGroups } : null;
-      }).filter(Boolean);
+    // "Saqlanganlar" rejimida faqat saqlangan hujjatlar
+    if (activeTab === "mening") {
+      result = filterDocs(result, (doc) => favorites.has(doc.designation));
     }
 
-    setFilteredData(result);
-  }, [dataShnq, selectedFilters, searchQuery, activeTab, favorites]);
-
-  const handleView = (doc) => {
-    if (doc.url && doc.url.includes("tmsiti.uz/srn")) {
-      handleNavigateToSRN(doc.designation);
-      return;
+    if (sortBy !== "relevance") {
+      const compare = {
+        newest: (a, b) =>
+          (getYear(b.designation) || 0) - (getYear(a.designation) || 0),
+        oldest: (a, b) =>
+          (getYear(a.designation) || 9999) - (getYear(b.designation) || 9999),
+        code: (a, b) =>
+          (a.designation || "").localeCompare(b.designation || "", undefined, {
+            numeric: true,
+          }),
+      }[sortBy];
+      result = result.map((item) => ({
+        ...item,
+        groups: (item.groups || []).map((group) => ({
+          ...group,
+          documents: [...(group.documents || [])].sort(compare),
+        })),
+      }));
     }
-    const fileUrl = doc.pdf_uz 
-      ? `https://main.tmsiti.uz/media/${doc.pdf_uz}`
-      : doc.pdf_ru 
-        ? `https://main.tmsiti.uz/media/${doc.pdf_ru}`
-        : null;
-    if (fileUrl) {
-      window.open(fileUrl, '_blank');
+
+    return result;
+  }, [baseData, selectedFilters, searchQuery, activeTab, favorites, sortBy]);
+
+  const toggleFavorite = (designation, e) => {
+    if (e) e.stopPropagation();
+    setFavorites((prev) => {
+      const newFavorites = new Set(prev);
+      if (newFavorites.has(designation)) {
+        newFavorites.delete(designation);
+      } else {
+        newFavorites.add(designation);
+      }
+      localStorage.setItem(
+        "shnq_favorites",
+        JSON.stringify(Array.from(newFavorites))
+      );
+      return newFavorites;
+    });
+  };
+
+  const clearAllFavorites = () => {
+    if (window.confirm("Hamma saqlangan hujjatlarni o'chirishni istaysizmi?")) {
+      setFavorites(new Set());
+      localStorage.removeItem("shnq_favorites");
     }
   };
 
   const extractNumberFromDesignation = (designation) => {
-    if (!designation) return '';
-    return designation.replace(/[ШНҚShNQSHNQШНК\s]/gi, '').trim();
+    if (!designation) return "";
+    return designation.replace(/[ШНҚShNQSHNQШНК\s]/gi, "").trim();
   };
 
   const handleNavigateToSRN = (designation) => {
@@ -200,30 +355,41 @@ const Index = () => {
     }
   };
 
-  const handleDownload = (doc) => {
-    if (doc.url && doc.url.includes("tmsiti.uz/srn")) {
+  const handleView = (doc) => {
+    if (isSrnDoc(doc)) {
       handleNavigateToSRN(doc.designation);
       return;
     }
-    if (doc.url && (doc.url.includes("lex.uz") || doc.url.includes("www.lex.uz"))) {
-      window.open(doc.url, '_blank');
+    const fileUrl = getPdfUrl(doc);
+    if (fileUrl) window.open(fileUrl, "_blank");
+  };
+
+  const handleDownload = (doc) => {
+    if (isSrnDoc(doc)) {
+      handleNavigateToSRN(doc.designation);
       return;
     }
+    const fileUrl = getPdfUrl(doc);
+    if (!fileUrl) return;
+    const link = document.createElement("a");
+    link.href = fileUrl;
+    link.download = "";
+    link.target = "_blank";
+    link.rel = "noopener";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   };
 
-  const isViewButtonDisabled = (doc) => {
-    if (doc.url && doc.url.includes("tmsiti.uz/srn")) return false;
-    if (doc.pdf_uz || doc.pdf_ru) return false;
-    return true;
+  const copyLink = (doc) => {
+    const fileUrl = getPdfUrl(doc) || doc.url;
+    if (fileUrl && navigator.clipboard) navigator.clipboard.writeText(fileUrl);
+    setOpenActions(null);
   };
 
-  const isDownloadButtonDisabled = (doc) => {
-    if (doc.url && doc.url.includes("tmsiti.uz/srn")) return false;
-    if (doc.url && (doc.url.includes("lex.uz") || doc.url.includes("www.lex.uz"))) return false;
-    if (!doc.url || doc.url === "null" || doc.url === "" || doc.url === null) return true;
-    return true;
-  };
+  const isViewDisabled = (doc) => !isSrnDoc(doc) && !getPdfUrl(doc);
 
+  // openItems/openGroups: true — yopiq
   const toggleItem = (index) => {
     setOpenItems((prev) => ({ ...prev, [index]: !prev[index] }));
   };
@@ -235,454 +401,931 @@ const Index = () => {
     }));
   };
 
-  const filterData = {
-    hujjatTurlari: [
-      { id: 'shnq', label: 'SHNQ', count: 0 },
-      { id: 'qmq', label: 'QMQ', count: 0 },
-    ],
-    quyiTizimlar: [
-      { id: '1', label: 'Tashkiliy va uslubiy normalar', count: 0 },
-      { id: '2', label: 'Texnik loyihalash meyorlari', count: 0 },
-      { id: '3', label: 'Tashkil etish qoidlariva  ...', count: 0 },
-      { id: '4', label: 'Iqtisodiy standartlar', count: 0 }
-    ],
-    sektorlar: [
-      { id: 'qurilish', label: 'Qurilish', count: 0 },
-      { id: 'energetika', label: 'Turar joy', count: 0 },
-      { id: 'ekologiya', label: 'Ekologiya', count: 0 },
-      { id: 'shaharsozlik', label: 'Shaharsozlik', count: 0 }
-    ]
-  };
-
   const handleFilterChange = (category, id) => {
-    setSelectedFilters(prev => {
-      if (category === 'quyiTizimlar') {
-        const newFilters = prev[category].includes(id) ? [] : [id];
-        return { ...prev, [category]: newFilters };
+    setSelectedFilters((prev) => {
+      if (category === "quyiTizimlar") {
+        return { ...prev, [category]: prev[category].includes(id) ? [] : [id] };
       }
-      
       const categoryFilters = prev[category];
       const newFilters = categoryFilters.includes(id)
-        ? categoryFilters.filter(item => item !== id)
+        ? categoryFilters.filter((item) => item !== id)
         : [...categoryFilters, id];
       return { ...prev, [category]: newFilters };
     });
   };
 
-  const clearFilters = () => {
-    setSelectedFilters({
-      hujjatTurlari: [],
-      quyiTizimlar: [],
-      sektorlar: []
-    });
-    setSearchQuery('');
+  const selectSectorChip = (id) => {
+    setSelectedFilters((prev) => ({ ...prev, sektorlar: id ? [id] : [] }));
   };
 
-  if (loading)
+  const clearFilters = () => {
+    setSelectedFilters({ hujjatTurlari: [], quyiTizimlar: [], sektorlar: [] });
+    setSearchQuery("");
+  };
+
+  const isEmptyResult = filteredData.length === 0;
+
+  const heroStats = [
+    {
+      id: "total",
+      value: stats.total,
+      label: "Jami hujjatlar",
+      Icon: FileTextIcon,
+      iconClass: "bg-[#E8F0FE] text-[#2B5CD9]",
+    },
+    {
+      id: "categories",
+      value: stats.categories,
+      label: "Kategoriya",
+      Icon: LayersIcon,
+      iconClass: "bg-[#E4F6EC] text-[#1E9E62]",
+    },
+    {
+      id: "types",
+      value: stats.types,
+      label: "Hujjat turlari",
+      Icon: UsersIcon,
+      iconClass: "bg-[#EEEAFD] text-[#7C5CE0]",
+    },
+    {
+      id: "pdf",
+      value: stats.pdf,
+      label: "PDF fayllar",
+      Icon: DownloadIcon,
+      iconClass: "bg-[#FFEEE4] text-[#F0692A]",
+    },
+  ];
+
+  const renderActions = (doc, key, compact) => {
+    const isFavorite = favorites.has(doc.designation);
+    const viewDisabled = isViewDisabled(doc);
     return (
-      <Main>
-        <ContentLoader />
-      </Main>
+      <div className={"flex items-center gap-2 shrink-0"}>
+        <button
+          type={"button"}
+          onClick={() => handleView(doc)}
+          disabled={viewDisabled}
+          title={viewDisabled ? "Ko'rish uchun fayl mavjud emas" : "Ko'rish"}
+          className={clsx(
+            "h-[36px] px-3 rounded-[10px] border flex items-center gap-x-2 text-[13px] font-medium transition-colors",
+            viewDisabled
+              ? "border-[#EEF1F6] text-[#B8C0D0] cursor-not-allowed"
+              : "border-[#E3E9F5] text-[#1D5BE8] hover:bg-[#EEF4FF]"
+          )}
+        >
+          <EyeIcon className={"w-[18px] h-[18px]"} />
+          {!compact && <span className={"hidden sm:inline"}>Ko&apos;rish</span>}
+        </button>
+        <button
+          type={"button"}
+          onClick={() => handleDownload(doc)}
+          disabled={viewDisabled}
+          title={viewDisabled ? "Yuklab olish uchun fayl mavjud emas" : "Yuklab olish"}
+          className={clsx(
+            "h-[36px] px-3 rounded-[10px] border flex items-center gap-x-2 text-[13px] font-medium transition-colors",
+            viewDisabled
+              ? "border-[#EEF1F6] text-[#B8C0D0] cursor-not-allowed"
+              : "border-[#E3E9F5] text-[#1D5BE8] hover:bg-[#EEF4FF]"
+          )}
+        >
+          <DownloadIcon className={"w-[18px] h-[18px]"} />
+          {!compact && (
+            <span className={"hidden sm:inline"}>Yuklab olish</span>
+          )}
+        </button>
+        {activeTab === "mening" ? (
+          <button
+            type={"button"}
+            onClick={(e) => toggleFavorite(doc.designation, e)}
+            title={"Saqlanganlardan o'chirish"}
+            className={
+              "w-[36px] h-[36px] rounded-[10px] flex items-center justify-center text-[#E5484D] hover:bg-[#FDECEC] transition-colors"
+            }
+          >
+            <TrashIcon className={"w-[18px] h-[18px]"} />
+          </button>
+        ) : (
+          <button
+            type={"button"}
+            onClick={(e) => toggleFavorite(doc.designation, e)}
+            title={isFavorite ? "Saqlanganlardan o'chirish" : "Saqlash"}
+            className={clsx(
+              "w-[36px] h-[36px] rounded-[10px] flex items-center justify-center hover:bg-[#F1F4FA] transition-colors",
+              isFavorite ? "text-[#F5B400]" : "text-[#8A95B0]"
+            )}
+          >
+            <StarIcon className={"w-5 h-5"} filled={isFavorite} />
+          </button>
+        )}
+        <div
+          className={"relative"}
+          ref={openActions === key ? actionsRef : null}
+        >
+          <button
+            type={"button"}
+            onClick={() => setOpenActions(openActions === key ? null : key)}
+            className={
+              "w-[28px] h-[36px] rounded-[10px] flex items-center justify-center text-[#0B1A4F] hover:bg-[#F1F4FA] transition-colors"
+            }
+          >
+            <MoreVerticalIcon className={"w-5 h-5"} />
+          </button>
+          {openActions === key && (
+            <ul
+              className={
+                "absolute right-0 top-full mt-1 z-30 w-[210px] bg-white rounded-xl border border-[#EEF2FA] shadow-[0_12px_32px_rgba(16,42,116,0.14)] p-1.5"
+              }
+            >
+              <li>
+                <button
+                  type={"button"}
+                  disabled={!isLexDoc(doc)}
+                  onClick={() => {
+                    window.open(doc.url, "_blank");
+                    setOpenActions(null);
+                  }}
+                  className={clsx(
+                    "w-full flex items-center gap-x-2 px-3 py-2 rounded-lg text-[13px] text-left",
+                    isLexDoc(doc)
+                      ? "text-[#0B1A4F] hover:bg-[#EEF4FF]"
+                      : "text-[#B8C0D0] cursor-not-allowed"
+                  )}
+                >
+                  <ExternalLinkIcon className={"w-4 h-4"} />
+                  Lex.uz&apos;da ochish
+                </button>
+              </li>
+              <li>
+                <button
+                  type={"button"}
+                  onClick={() => copyLink(doc)}
+                  className={
+                    "w-full flex items-center gap-x-2 px-3 py-2 rounded-lg text-[13px] text-left text-[#0B1A4F] hover:bg-[#EEF4FF]"
+                  }
+                >
+                  <LinkIcon className={"w-4 h-4"} />
+                  Havolani nusxalash
+                </button>
+              </li>
+            </ul>
+          )}
+        </div>
+      </div>
     );
-  if (error) return <p>Xatolik: {error}</p>;
+  };
+
+  const renderTags = (doc) => {
+    const year = getYear(doc.designation);
+    const tagClass = "px-2.5 py-[3px] rounded-md text-[12px]";
+    return (
+      <div className={"mt-2 flex flex-wrap items-center gap-2"}>
+        {doc.status === false ? (
+          <span className={clsx(tagClass, "bg-[#FDECEC] text-[#E5484D]")}>
+            Bekor qilingan
+          </span>
+        ) : (
+          <span className={clsx(tagClass, "bg-[#E6F6EC] text-[#1E9E62]")}>
+            Amalda
+          </span>
+        )}
+        {year && (
+          <span className={clsx(tagClass, "bg-[#F1F4FA] text-[#5B6788]")}>
+            {year}
+          </span>
+        )}
+        {getPdfUrl(doc) && (
+          <span className={clsx(tagClass, "bg-[#F1F4FA] text-[#5B6788]")}>
+            PDF
+          </span>
+        )}
+      </div>
+    );
+  };
+
+  const renderDocument = (doc, key) => {
+    const { label, number } = splitDesignation(doc.designation);
+    const code = (
+      <div
+        className={
+          "text-[13px] leading-[1.35] font-semibold text-[#0B1A4F] break-words"
+        }
+      >
+        {label && <p>{label}</p>}
+        <p>{number}</p>
+      </div>
+    );
+    const icon = (
+      <div
+        className={
+          "w-[40px] h-[40px] shrink-0 rounded-[10px] bg-[#F1F4FA] text-[#5B6788] flex items-center justify-center"
+        }
+      >
+        <FileTextIcon className={"w-5 h-5"} />
+      </div>
+    );
+
+    if (viewMode === "grid") {
+      return (
+        <div
+          key={key}
+          className={
+            "flex flex-col rounded-[14px] border border-[#EEF2FA] p-4 hover:border-[#D6E2FB] hover:shadow-[0_8px_24px_rgba(16,42,116,0.08)] transition-all"
+          }
+        >
+          <div className={"flex items-start gap-3"}>
+            {icon}
+            {code}
+          </div>
+          <p className={"mt-3 text-[14px] leading-[1.45] text-[#1E2B5A]"}>
+            {doc.name_uz}
+          </p>
+          {renderTags(doc)}
+          <div className={"mt-auto pt-4"}>
+            {renderActions(doc, key, true)}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        key={key}
+        className={
+          "flex flex-col md:flex-row md:items-center gap-4 px-4 md:px-5 py-4 border-t border-[#EEF2FA] hover:bg-[#FAFBFE] transition-colors"
+        }
+      >
+        <div className={"flex items-start gap-4 md:w-[170px] shrink-0"}>
+          {icon}
+          {code}
+        </div>
+        <div className={"flex-1 min-w-0"}>
+          <p className={"text-[14px] leading-[1.45] text-[#1E2B5A]"}>
+            {doc.name_uz}
+          </p>
+          {renderTags(doc)}
+        </div>
+        {renderActions(doc, key)}
+      </div>
+    );
+  };
+
+  const renderList = () => {
+    if (loading) {
+      return (
+        <div className={clsx("bg-white rounded-[18px] p-6", cardShadow)}>
+          <ContentLoader />
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div
+          className={clsx(
+            "bg-white rounded-[18px] p-10 text-center text-[#E5484D]",
+            cardShadow
+          )}
+        >
+          Xatolik: {error}
+        </div>
+      );
+    }
+
+    if (isEmptyResult) {
+      return (
+        <div
+          className={clsx("bg-white rounded-[18px] p-12 text-center", cardShadow)}
+        >
+          <div
+            className={
+              "mx-auto w-[72px] h-[72px] rounded-full bg-[#E8F0FE] text-[#2B5CD9] flex items-center justify-center"
+            }
+          >
+            {activeTab === "mening" ? (
+              <StarIcon className={"w-9 h-9"} />
+            ) : (
+              <FileSearchIcon className={"w-9 h-9"} />
+            )}
+          </div>
+          <h3 className={"mt-5 text-[18px] font-bold text-[#0B1A4F]"}>
+            {activeTab === "mening"
+              ? "Saqlangan hujjatlar hozircha yo'q"
+              : "Hech narsa topilmadi"}
+          </h3>
+          <p className={"mt-2 text-[14px] text-[#5B6788] max-w-md mx-auto"}>
+            {activeTab === "mening"
+              ? "Kerakli hujjatlarni yulduzcha orqali ro'yxatingizga qo'shing."
+              : "Qidiruv so'zini yoki filtrlarni o'zgartirib ko'ring."}
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className={"space-y-4"}>
+        {filteredData.map((item, itemIndex) => {
+          const itemClosed = openItems[itemIndex];
+          return (
+            <div
+              key={itemIndex}
+              className={clsx(
+                "bg-white rounded-[18px] border border-[#EEF2FA]",
+                cardShadow
+              )}
+            >
+              <button
+                type={"button"}
+                onClick={() => toggleItem(itemIndex)}
+                className={
+                  "w-full flex items-center gap-4 px-4 md:px-5 py-4 text-left"
+                }
+              >
+                <FileSearchIcon
+                  className={"w-[26px] h-[26px] shrink-0 text-[#1D5BE8]"}
+                />
+                <h3
+                  className={
+                    "flex-1 text-[15px] md:text-[16px] font-bold text-[#0B1A4F]"
+                  }
+                >
+                  {item.title}
+                </h3>
+                <span
+                  className={
+                    "shrink-0 px-3 py-1 rounded-lg bg-[#E8F0FE] text-[13px] font-medium text-[#1D5BE8]"
+                  }
+                >
+                  {countDocs([item])} hujjat
+                </span>
+                <ChevronDownIcon
+                  className={clsx(
+                    "w-5 h-5 shrink-0 text-[#1D5BE8] transition-transform",
+                    { "rotate-180": !itemClosed }
+                  )}
+                />
+              </button>
+
+              {!itemClosed && (
+                <div className={"px-2 pb-2 space-y-2"}>
+                  {(item.groups || []).map((group, groupIndex) => {
+                    const groupKey = `${itemIndex}-${groupIndex}`;
+                    const groupClosed = openGroups[groupKey];
+                    return (
+                      <div
+                        key={groupIndex}
+                        className={
+                          "rounded-[14px] border border-[#E6EDFB] overflow-hidden"
+                        }
+                      >
+                        <button
+                          type={"button"}
+                          onClick={() => toggleGroup(itemIndex, groupIndex)}
+                          className={
+                            "w-full flex items-center gap-4 px-3 md:px-4 py-3 bg-[#F3F7FF] hover:bg-[#EAF1FF] text-left transition-colors"
+                          }
+                        >
+                          <FileSearchIcon
+                            className={"w-[22px] h-[22px] shrink-0 text-[#1D5BE8]"}
+                          />
+                          <h4
+                            className={
+                              "flex-1 text-[14px] md:text-[15px] font-semibold text-[#1D4FC4]"
+                            }
+                          >
+                            {group.title}
+                          </h4>
+                          <span
+                            className={
+                              "shrink-0 px-3 py-1 rounded-lg bg-[#DDE8FD] text-[13px] font-medium text-[#1D5BE8]"
+                            }
+                          >
+                            {(group.documents || []).length} hujjat
+                          </span>
+                          <ChevronDownIcon
+                            className={clsx(
+                              "w-5 h-5 shrink-0 text-[#1D5BE8] transition-transform",
+                              { "rotate-180": !groupClosed }
+                            )}
+                          />
+                        </button>
+
+                        {!groupClosed &&
+                          (viewMode === "grid" ? (
+                            <div
+                              className={
+                                "grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-3 p-3"
+                              }
+                            >
+                              {(group.documents || []).map((doc, docIndex) =>
+                                renderDocument(
+                                  doc,
+                                  `${groupKey}-${docIndex}`
+                                )
+                              )}
+                            </div>
+                          ) : (
+                            <div>
+                              {(group.documents || []).map((doc, docIndex) =>
+                                renderDocument(
+                                  doc,
+                                  `${groupKey}-${docIndex}`
+                                )
+                              )}
+                            </div>
+                          ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const activeSector =
+    selectedFilters.sektorlar.length === 1 ? selectedFilters.sektorlar[0] : null;
 
   return (
     <Main>
-      <SnowAnimation />
       <Menu />
-      
-      {/* Breadcrumb */}
-      <section className={"bg-[#EFF3FA] text-xs text-[#607198] mb-[30px]"}>
-        <div
+
+      <div className={"font-jakarta bg-[#F6F9FF] text-[#0B1A4F]"}>
+        {/* HERO */}
+        <section className={"relative overflow-hidden"}>
+          <Image
+            src={"/images/homepage-back.png?v=2"}
+            unoptimized
+            alt={""}
+            fill
+            priority
+            sizes={"100vw"}
+            className={
+              "object-cover object-[80%_25%] select-none pointer-events-none"
+            }
+          />
+          <div
+            className={
+              "absolute inset-0 bg-white/80 md:bg-transparent md:bg-gradient-to-r md:from-white/95 md:via-white/75 md:to-white/0"
+            }
+          />
+          <div
+            className={
+              "absolute inset-x-0 bottom-0 h-[90px] bg-gradient-to-t from-[#F6F9FF] to-transparent"
+            }
+          />
+
+          <div
+            className={
+              "relative max-w-[1536px] mx-auto px-5 lg:px-[115px] pt-7 pb-[70px]"
+            }
+          >
+            <nav
+              className={
+                "flex flex-wrap items-center gap-x-2 text-[13px] text-[#0B1A4F]"
+              }
+            >
+              <Link href={"/"} className={"hover:text-[#1D5BE8]"}>
+                {t("homepage")}
+              </Link>
+              <ChevronRightIcon className={"w-3.5 h-3.5 text-[#8A95B0]"} />
+              <span className={"text-[#5B6788]"}>{t("documents")}</span>
+              <ChevronRightIcon className={"w-3.5 h-3.5 text-[#8A95B0]"} />
+              <span className={"text-[#5B6788]"}>SHNQ</span>
+            </nav>
+
+            <h1
+              className={
+                "mt-5 text-[28px] md:text-[38px] font-extrabold tracking-[-0.01em] text-[#0B1A4F]"
+              }
+            >
+              {t("shnq")}
+            </h1>
+            <p
+              className={
+                "mt-2 max-w-[520px] text-[15px] md:text-[16px] leading-[1.5] text-[#5B6788]"
+              }
+            >
+              Qurilish va shaharsozlik sohasidagi me&apos;yoriy hujjatlar,
+              standartlar, texnik qoidalar va uslubiy materiallar.
+            </p>
+
+            <div
+              className={
+                "mt-6 grid grid-cols-2 lg:flex lg:flex-wrap gap-3 lg:gap-4"
+              }
+            >
+              {heroStats.map(({ id, value, label, Icon, iconClass }) => (
+                <div
+                  key={id}
+                  className={
+                    "flex items-center gap-x-4 lg:min-w-[165px] bg-white/85 backdrop-blur-sm rounded-[14px] px-3 py-3 lg:pr-6 shadow-[0_6px_20px_rgba(16,42,116,0.06)]"
+                  }
+                >
+                  <div
+                    className={clsx(
+                      "w-[44px] h-[44px] shrink-0 rounded-[12px] flex items-center justify-center",
+                      iconClass
+                    )}
+                  >
+                    <Icon className={"w-6 h-6"} />
+                  </div>
+                  <div>
+                    <p
+                      className={
+                        "text-[18px] font-bold leading-tight text-[#0B1A4F]"
+                      }
+                    >
+                      {loading ? "—" : value.toLocaleString("ru-RU")}
+                    </p>
+                    <p className={"text-[13px] text-[#5B6788]"}>{label}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* CONTENT */}
+        <section
           className={
-            "container py-[12px] px-[20px] md:px-[15px] lg:px-[10px] xl:px-0"
+            "relative z-10 -mt-[36px] max-w-[1536px] mx-auto px-3 md:px-5 lg:px-[55px] pb-16"
           }
         >
-          <Link href={"/"}>{t("homepage")} / </Link>
-          <Link href={"#"}>{t("documents")} / </Link>
-          <Link href={"#"}>{t("SHNQ")}</Link>
-        </div>
-      </section>
-
-      {/* Tabs */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="container mx-auto px-[20px] md:px-[15px] lg:px-[10px] xl:px-0">
-          <div className="flex gap-8">
-            <button
-              onClick={() => setActiveTab('yangi')}
-              className={`pb-3 px-1 font-medium transition-colors ${
-                activeTab === 'yangi'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Shaharsozlik normlari va qoidalari
-            </button>
-            <button
-              onClick={() => setActiveTab('mening')}
-              className={`pb-3 px-1 font-medium transition-colors ${
-                activeTab === 'mening'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Mening hujjatlarim ({favorites.size})
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content with Background */}
-      <section className="bg-[#f3f4f6] min-h-screen">
-        <div className="container mx-auto px-[20px] md:px-[15px] lg:px-[10px] xl:px-0 py-6">
-          <div className="flex gap-6">
-            {/* Sidebar Filter with Box Shadow */}
-            <div className="w-64 flex-shrink-0 hidden lg:block">
-              <div className="bg-white rounded-lg p-4 sticky top-4" style={{ boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)' }}>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2 text-gray-900 font-medium">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-                    </svg>
-                    <span>Filtrlar</span>
+          <div
+            className={
+              "bg-white/70 backdrop-blur-sm rounded-[28px] border border-white p-3 md:p-4 flex gap-5"
+            }
+          >
+            {/* Sidebar */}
+            <aside className={"w-[300px] shrink-0 hidden lg:block"}>
+              <div
+                className={clsx(
+                  "bg-white rounded-[18px] border border-[#EEF2FA] p-5",
+                  cardShadow
+                )}
+              >
+                <div className={"flex items-center justify-between"}>
+                  <div
+                    className={
+                      "flex items-center gap-x-3 text-[18px] font-bold text-[#0B1A4F]"
+                    }
+                  >
+                    <FilterIcon className={"w-6 h-6"} />
+                    Filtrlar
                   </div>
                   <button
+                    type={"button"}
                     onClick={clearFilters}
-                    className="text-sm text-blue-600 hover:text-blue-700"
+                    className={
+                      "px-2.5 py-1 rounded-md bg-[#EEF4FF] text-[13px] font-medium text-[#1D5BE8] hover:bg-[#DCE7FF] transition-colors"
+                    }
                   >
                     Tozalash
                   </button>
                 </div>
 
-                {/* Hujjat Turlari */}
-                <div className="mb-6">
-                  <h3 className="font-medium text-gray-900 mb-3 text-sm">HUJJAT TURLARI</h3>
-                  <div className="space-y-2">
-                    {filterData.hujjatTurlari.map(item => (
-                      <label key={item.id} className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selectedFilters.hujjatTurlari.includes(item.id)}
-                          onChange={() => handleFilterChange('hujjatTurlari', item.id)}
-                          className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                        />
-                        <span className="text-sm text-gray-700">{item.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Quyi Tizimlar */}
-                <div className="mb-6">
-                  <h3 className="font-medium text-gray-900 mb-3 text-sm flex items-center justify-between">
-                    QUYI TIZIMLAR
-                    <span className="bg-blue-100 text-blue-600 text-xs px-2 py-0.5 rounded">4 quyi tizim</span>
+                <div className={"mt-6"}>
+                  <h3 className={"text-[15px] font-bold text-[#0B1A4F]"}>
+                    Hujjat turlari
                   </h3>
-                  <div className="space-y-2">
-                    {filterData.quyiTizimlar.map(item => (
-                      <label key={item.id} className="flex items-center gap-2 cursor-pointer">
+                  <div className={"mt-3 space-y-3"}>
+                    {documentTypes.map((item) => (
+                      <label
+                        key={item.id}
+                        className={
+                          "flex items-center gap-3 cursor-pointer select-none"
+                        }
+                      >
                         <input
-                          type="radio"
-                          name="quyiTizim"
-                          checked={selectedFilters.quyiTizimlar.includes(item.id)}
-                          onChange={() => handleFilterChange('quyiTizimlar', item.id)}
-                          className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                          type={"checkbox"}
+                          className={"sr-only"}
+                          checked={selectedFilters.hujjatTurlari.includes(
+                            item.id
+                          )}
+                          onChange={() =>
+                            handleFilterChange("hujjatTurlari", item.id)
+                          }
                         />
-                        <span className="text-sm text-gray-700">{item.label}</span>
+                        <Checkbox
+                          checked={selectedFilters.hujjatTurlari.includes(
+                            item.id
+                          )}
+                        />
+                        <span className={"flex-1 text-[14px] text-[#1E2B5A]"}>
+                          {item.label}
+                        </span>
+                        <CountBadge>
+                          {(stats.typeCounts[item.id] || 0).toLocaleString(
+                            "ru-RU"
+                          )}
+                        </CountBadge>
                       </label>
                     ))}
                   </div>
                 </div>
 
-                {/* Sektorlar */}
-                <div>
-                  <h3 className="font-medium text-gray-900 mb-3 text-sm">SEKTORLAR</h3>
-                  <div className="space-y-2">
-                    {filterData.sektorlar.map(item => (
-                      <label key={item.id} className="flex items-center gap-2 cursor-pointer">
+                <div className={"mt-7"}>
+                  <div className={"flex items-center justify-between"}>
+                    <h3 className={"text-[15px] font-bold text-[#0B1A4F]"}>
+                      Quyi tizimlar
+                    </h3>
+                    <span
+                      className={
+                        "px-2.5 py-1 rounded-md bg-[#EEF4FF] text-[12px] font-medium text-[#1D5BE8]"
+                      }
+                    >
+                      {subsystems.length} ta tizim
+                    </span>
+                  </div>
+                  <div className={"mt-3 space-y-3"}>
+                    {subsystems.map((item) => {
+                      const checked = selectedFilters.quyiTizimlar.includes(
+                        item.id
+                      );
+                      return (
+                        <label
+                          key={item.id}
+                          className={
+                            "flex items-center gap-3 cursor-pointer select-none"
+                          }
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleFilterChange("quyiTizimlar", item.id);
+                          }}
+                        >
+                          <Checkbox checked={checked} round />
+                          <span
+                            className={clsx(
+                              "flex-1 text-[14px]",
+                              checked
+                                ? "text-[#0B1A4F] font-medium"
+                                : "text-[#1E2B5A]"
+                            )}
+                          >
+                            {item.label}
+                          </span>
+                          <CountBadge>
+                            {stats.subsystemCounts?.[item.id] || 0}
+                          </CountBadge>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className={"mt-7"}>
+                  <h3 className={"text-[15px] font-bold text-[#0B1A4F]"}>
+                    Sektorlar
+                  </h3>
+                  <div className={"mt-3 space-y-3"}>
+                    {sectors.map((item) => (
+                      <label
+                        key={item.id}
+                        className={
+                          "flex items-center gap-3 cursor-pointer select-none"
+                        }
+                      >
                         <input
-                          type="checkbox"
+                          type={"checkbox"}
+                          className={"sr-only"}
                           checked={selectedFilters.sektorlar.includes(item.id)}
-                          onChange={() => handleFilterChange('sektorlar', item.id)}
-                          className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                          onChange={() =>
+                            handleFilterChange("sektorlar", item.id)
+                          }
                         />
-                        <span className="text-sm text-gray-700">{item.label}</span>
+                        <Checkbox
+                          checked={selectedFilters.sektorlar.includes(item.id)}
+                        />
+                        <span className={"flex-1 text-[14px] text-[#1E2B5A]"}>
+                          {item.label}
+                        </span>
+                        <CountBadge>
+                          {stats.sectorCounts[item.id] || 0}
+                        </CountBadge>
                       </label>
                     ))}
                   </div>
                 </div>
               </div>
-            </div>
+            </aside>
 
-            {/* Content Area */}
-            <div className="flex-1">
-              {/* Search and View Toggle with Box Shadow */}
-              <div className="bg-white rounded-lg p-4 mb-4 flex flex-col md:flex-row items-stretch md:items-center gap-4" style={{ boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)' }}>
-                <div className="flex-1 relative">
-                  <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="11" cy="11" r="8" />
-                    <path d="m21 21-4.35-4.35" />
-                  </svg>
+            {/* Main */}
+            <div className={"flex-1 min-w-0"}>
+              {/* Toolbar */}
+              <div
+                className={clsx(
+                  "bg-white rounded-[18px] border border-[#EEF2FA] p-3 flex flex-col md:flex-row md:items-center gap-3",
+                  cardShadow
+                )}
+              >
+                <div className={"flex-1 relative"}>
+                  <SearchIcon
+                    className={
+                      "absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#8A95B0]"
+                    }
+                  />
                   <input
-                    type="text"
-                    placeholder="Hujjat nomi, kodi yoki kalit so'zlar bo'yicha qidirish..."
+                    type={"text"}
+                    placeholder={
+                      "Hujjat nomi, kodi yoki kalit so'zlar bo'yicha qidirish..."
+                    }
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={
+                      "w-full h-[46px] pl-12 pr-4 rounded-[12px] border border-[#DCE3F0] text-[14px] text-[#0B1A4F] placeholder:text-[#8A95B0] outline-none focus:border-[#1D5BE8] focus:ring-4 focus:ring-[#1D5BE8]/10 transition"
+                    }
                   />
                 </div>
-                <div className="flex gap-2 justify-end">
+                <div className={"flex items-center gap-2"}>
+                  <div className={"relative flex-1 md:flex-none"}>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className={
+                        "appearance-none w-full md:w-[190px] h-[46px] pl-4 pr-10 rounded-[12px] border border-[#DCE3F0] bg-white text-[14px] text-[#0B1A4F] outline-none focus:border-[#1D5BE8] cursor-pointer"
+                      }
+                    >
+                      {sortOptions.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDownIcon
+                      className={
+                        "absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#0B1A4F] pointer-events-none"
+                      }
+                    />
+                  </div>
                   <button
-                    onClick={() => setViewMode('list')}
-                    className={`p-2 rounded ${viewMode === 'list' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'}`}
+                    type={"button"}
+                    onClick={() =>
+                      setActiveTab(activeTab === "mening" ? "yangi" : "mening")
+                    }
+                    title={"Saqlangan hujjatlar"}
+                    className={clsx(
+                      "h-[46px] px-3 rounded-[12px] flex items-center gap-x-2 text-[14px] font-medium transition-colors",
+                      activeTab === "mening"
+                        ? "bg-[#FFF6DB] text-[#B78100]"
+                        : "bg-[#F1F4FA] text-[#5B6788] hover:bg-[#E8EDF7]"
+                    )}
                   >
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M3 4h14v2H3V4zm0 5h14v2H3V9zm0 5h14v2H3v-2z"/>
-                    </svg>
+                    <StarIcon
+                      className={"w-5 h-5"}
+                      filled={activeTab === "mening"}
+                    />
+                    {favorites.size}
                   </button>
                   <button
-                    onClick={() => setViewMode('grid')}
-                    className={`p-2 rounded ${viewMode === 'grid' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'}`}
+                    type={"button"}
+                    onClick={() => setViewMode("list")}
+                    className={clsx(
+                      "w-[46px] h-[46px] rounded-[12px] flex items-center justify-center transition-colors",
+                      viewMode === "list"
+                        ? "bg-[#E4EEFF] text-[#1D5BE8]"
+                        : "bg-[#F1F4FA] text-[#5B6788] hover:bg-[#E8EDF7]"
+                    )}
                   >
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M3 3h6v6H3V3zm8 0h6v6h-6V3zM3 11h6v6H3v-6zm8 0h6v6h-6v-6z"/>
-                    </svg>
+                    <ListIcon className={"w-5 h-5"} />
+                  </button>
+                  <button
+                    type={"button"}
+                    onClick={() => setViewMode("grid")}
+                    className={clsx(
+                      "w-[46px] h-[46px] rounded-[12px] flex items-center justify-center transition-colors",
+                      viewMode === "grid"
+                        ? "bg-[#E4EEFF] text-[#1D5BE8]"
+                        : "bg-[#F1F4FA] text-[#5B6788] hover:bg-[#E8EDF7]"
+                    )}
+                  >
+                    <GridIcon className={"w-5 h-5"} />
                   </button>
                 </div>
               </div>
 
-              {/* "Mening hujjatlarim" uchun header */}
-              {activeTab === 'mening' && favorites.size > 0 && (
-                <div className="bg-white rounded-lg p-4 mb-4 flex items-center justify-between" style={{ boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)' }}>
-                  <div className="flex items-center gap-2">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="#facc15" stroke="#facc15" strokeWidth="2">
-                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                    </svg>
-                    <span className="font-medium text-gray-900">Saqlangan hujjatlar: {favorites.size} ta</span>
+              {/* Sector chips */}
+              <div
+                className={
+                  "mt-4 flex gap-3 overflow-x-auto pb-1 -mx-1 px-1 xl:grid xl:grid-cols-[1.25fr_repeat(5,1fr)] xl:overflow-visible"
+                }
+              >
+                <button
+                  type={"button"}
+                  onClick={() => selectSectorChip(null)}
+                  className={clsx(
+                    "shrink-0 min-w-[170px] xl:min-w-0 flex items-center gap-3 rounded-[14px] px-4 py-3 text-left transition-all",
+                    selectedFilters.sektorlar.length === 0
+                      ? "bg-[#1E63F0] text-white shadow-[0_10px_24px_rgba(30,99,240,0.35)]"
+                      : clsx("bg-white text-[#0B1A4F] hover:-translate-y-0.5", cardShadow)
+                  )}
+                >
+                  <span
+                    className={clsx(
+                      "w-[40px] h-[40px] shrink-0 rounded-[10px] flex items-center justify-center",
+                      selectedFilters.sektorlar.length === 0
+                        ? "bg-white/20"
+                        : "bg-[#E8F0FE] text-[#2B5CD9]"
+                    )}
+                  >
+                    <FileTextIcon className={"w-5 h-5"} />
+                  </span>
+                  <span className={"min-w-0"}>
+                    <span className={"block text-[14px] font-semibold whitespace-nowrap"}>
+                      Barcha hujjatlar
+                    </span>
+                    <span
+                      className={clsx(
+                        "inline-block mt-1 px-2 rounded-md text-[12px]",
+                        selectedFilters.sektorlar.length === 0
+                          ? "bg-white/20"
+                          : "bg-[#F1F4FA] text-[#5B6788]"
+                      )}
+                    >
+                      {stats.total.toLocaleString("ru-RU")}
+                    </span>
+                  </span>
+                </button>
+                {sectors.map(({ id, label, Icon, iconClass }) => (
+                  <button
+                    key={id}
+                    type={"button"}
+                    onClick={() => selectSectorChip(activeSector === id ? null : id)}
+                    className={clsx(
+                      "shrink-0 min-w-[150px] xl:min-w-0 flex items-center gap-2.5 rounded-[14px] px-2.5 py-3 text-left bg-white border-2 transition-all hover:-translate-y-0.5",
+                      cardShadow,
+                      activeSector === id
+                        ? "border-[#1E63F0]"
+                        : "border-transparent"
+                    )}
+                  >
+                    <span
+                      className={clsx(
+                        "w-[40px] h-[40px] shrink-0 rounded-[10px] flex items-center justify-center",
+                        iconClass
+                      )}
+                    >
+                      <Icon className={"w-5 h-5"} />
+                    </span>
+                    <span className={"min-w-0"}>
+                      <span
+                        className={
+                          "block text-[14px] font-medium text-[#0B1A4F] truncate"
+                        }
+                      >
+                        {label}
+                      </span>
+                      <span className={"block text-[13px] text-[#5B6788]"}>
+                        {stats.sectorCounts[id] || 0}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {activeTab === "mening" && favorites.size > 0 && (
+                <div
+                  className={clsx(
+                    "mt-4 bg-white rounded-[18px] border border-[#EEF2FA] px-5 py-3 flex items-center justify-between",
+                    cardShadow
+                  )}
+                >
+                  <div
+                    className={
+                      "flex items-center gap-2 text-[14px] font-semibold text-[#0B1A4F]"
+                    }
+                  >
+                    <StarIcon className={"w-5 h-5 text-[#F5B400]"} filled />
+                    Saqlangan hujjatlar: {favorites.size} ta
                   </div>
                   <button
+                    type={"button"}
                     onClick={clearAllFavorites}
-                    className="flex items-center gap-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors"
+                    className={
+                      "flex items-center gap-2 px-3 py-1.5 rounded-lg text-[13px] text-[#E5484D] hover:bg-[#FDECEC] transition-colors"
+                    }
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"/>
-                    </svg>
-                    Barchasini o'chirish
+                    <TrashIcon className={"w-4 h-4"} />
+                    Barchasini o&apos;chirish
                   </button>
                 </div>
               )}
 
-              {/* Conditional Content - Mening hujjatlarim Empty State */}
-              {activeTab === 'mening' && (!filteredData || filteredData.length === 0 || filteredData.every(item => !item.groups || item.groups.length === 0)) ? (
-                <div className="bg-white rounded-lg p-12 text-center" style={{ boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)' }}>
-                  <div className="flex justify-center mb-6">
-                    <svg width="80" height="80" viewBox="0 0 24 24" fill="none" className="text-blue-400">
-                      <path d="M3 7C3 5.89543 3.89543 5 5 5H9L10 3H14L15 5H19C20.1046 5 21 5.89543 21 7V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V7Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="#DBEAFE"/>
-                      <rect x="7" y="10" width="10" height="8" rx="1" fill="#93C5FD"/>
-                    </svg>
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-3">
-                    Mening hujjatlarimda hozircha hujjatlar mavjud emas
-                  </h3>
-                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                    Kerakli standartlarni qidiruv orqali topib, ularni ro'yxatingizga qo'shing!
-                  </p>
-                  <div className="flex items-center justify-center">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400">
-                      <path d="M5 12h14M12 5l7 7-7 7"/>
-                    </svg>
-                  </div>
-                </div>
-              ) : (
-                /* Documents List with Box Shadow */
-                <div className="space-y-3">
-                  {filteredData && filteredData.map((item, itemIndex) => (
-                    <div key={itemIndex} className="bg-white rounded-lg overflow-hidden" style={{ boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)' }}>
-                      {/* Section Header */}
-                      <div
-                        className="p-4 cursor-pointer hover:bg-gray-50 flex items-center justify-between transition-colors"
-                        onClick={() => toggleItem(itemIndex)}
-                      >
-                        <h3 className="font-semibold text-gray-900 text-base">{item.title}</h3>
-                        <svg 
-                          width="20" 
-                          height="20" 
-                          viewBox="0 0 24 24" 
-                          fill="none" 
-                          stroke="currentColor" 
-                          strokeWidth="2"
-                          className={`transform transition-transform ${openItems[itemIndex] ? '' : 'rotate-180'}`}
-                        >
-                          <polyline points="18 15 12 9 6 15" />
-                        </svg>
-                      </div>
-
-                      {/* Groups */}
-                      {!openItems[itemIndex] && item.groups && (
-                        <div className="border-t border-gray-200">
-                          {item.groups.map((group, groupIndex) => (
-                            <div key={groupIndex} className="border-b border-gray-200 last:border-b-0">
-                              {/* Group Header */}
-                              <div
-                                className="p-4 cursor-pointer hover:bg-blue-50 flex items-center justify-between bg-blue-50 transition-colors"
-                                onClick={() => toggleGroup(itemIndex, groupIndex)}
-                              >
-                                <h4 className="font-medium text-blue-900">{group.title}</h4>
-                                <svg 
-                                  width="18" 
-                                  height="18" 
-                                  viewBox="0 0 24 24" 
-                                  fill="none" 
-                                  stroke="currentColor" 
-                                  strokeWidth="2"
-                                  className={`transform transition-transform text-blue-600 ${openGroups[`${itemIndex}-${groupIndex}`] ? '' : 'rotate-180'}`}
-                                >
-                                  <polyline points="18 15 12 9 6 15" />
-                                </svg>
-                              </div>
-
-                              {/* Documents Table */}
-                              {!openGroups[`${itemIndex}-${groupIndex}`] && (
-                                <div className="overflow-x-auto">
-                                  <table className="w-full">
-                                    <thead className="bg-gray-100">
-                                      <tr>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                                          ШИФР
-                                        </th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                                          ҲУЖЖАТ НОМИ
-                                        </th>
-                                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider w-24">
-                                          КЎРИШ
-                                        </th>
-                                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider w-24">
-                                          LEX.UZ
-                                        </th>
-                                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider w-20">
-                                        </th>
-                                      </tr>
-                                    </thead>
-                                    <tbody className="bg-white divide-y divide-gray-200">
-                                      {group.documents && group.documents.map((doc, docIndex) => {
-                                        const isFavorite = favorites.has(doc.designation);
-                                        return (
-                                          <tr key={docIndex} className="hover:bg-gray-50 transition-colors">
-                                            <td className="px-4 py-3 text-sm text-gray-900">
-                                              {doc.designation}
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-gray-700">
-                                              {doc.name_uz}
-                                            </td>
-                                            <td className="px-4 py-3 text-center">
-                                              <button
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  handleView(doc);
-                                                }}
-                                                disabled={isViewButtonDisabled(doc)}
-                                                className={`inline-flex items-center justify-center p-1.5 rounded transition-colors ${
-                                                  !isViewButtonDisabled(doc)
-                                                    ? 'text-blue-600 hover:bg-blue-50'
-                                                    : 'text-gray-300 cursor-not-allowed'
-                                                }`}
-                                                title={
-                                                  !isViewButtonDisabled(doc)
-                                                    ? "Кўриш"
-                                                    : "Кўриш учун файл мавжуд эмас"
-                                                }
-                                              >
-                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                                                  <circle cx="12" cy="12" r="3" />
-                                                </svg>
-                                              </button>
-                                            </td>
-                                            <td className="px-4 py-3 text-center">
-                                              <button
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  handleDownload(doc);
-                                                }}
-                                                disabled={isDownloadButtonDisabled(doc)}
-                                                className={`inline-flex items-center justify-center p-1.5 rounded transition-colors ${
-                                                  !isDownloadButtonDisabled(doc)
-                                                    ? 'text-green-600 hover:bg-green-50'
-                                                    : 'text-gray-300 cursor-not-allowed'
-                                                }`}
-                                                title={
-                                                  !isDownloadButtonDisabled(doc)
-                                                    ? doc.url
-                                                    : "Lex.uz га ҳавола учун URL мавжуд эмас"
-                                                }
-                                              >
-                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                                                  <polyline points="15 3 21 3 21 9" />
-                                                  <line x1="10" y1="14" x2="21" y2="3" />
-                                                </svg>
-                                              </button>
-                                            </td>
-                                            <td className="px-4 py-3 text-center">
-                                              {activeTab === 'mening' ? (
-                                                // "Mening hujjatlarim" tab'ida faqat o'chirish tugmasi
-                                                <button
-                                                  onClick={(e) => toggleFavorite(doc.designation, e)}
-                                                  className="inline-flex items-center justify-center p-1.5 rounded hover:bg-red-50 transition-colors text-red-600"
-                                                  title="Saqlanganlardan o'chirish"
-                                                >
-                                                  <svg 
-                                                    width="18" 
-                                                    height="18" 
-                                                    viewBox="0 0 24 24" 
-                                                    fill="none" 
-                                                    stroke="currentColor" 
-                                                    strokeWidth="2"
-                                                  >
-                                                    <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"/>
-                                                  </svg>
-                                                </button>
-                                              ) : (
-                                                // Asosiy tab'da yulduzcha tugmasi
-                                                <button
-                                                  onClick={(e) => toggleFavorite(doc.designation, e)}
-                                                  className="inline-flex items-center justify-center p-1.5 rounded hover:bg-gray-100 transition-colors"
-                                                  title={isFavorite ? "Saqlanganlardan o'chirish" : "Saqlash"}
-                                                >
-                                                  <svg 
-                                                    width="18" 
-                                                    height="18" 
-                                                    viewBox="0 0 24 24" 
-                                                    fill={isFavorite ? '#facc15' : 'none'}
-                                                    stroke={isFavorite ? '#facc15' : '#9ca3af'}
-                                                    strokeWidth="2"
-                                                  >
-                                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                                                  </svg>
-                                                </button>
-                                              )}
-                                            </td>
-                                          </tr>
-                                        );
-                                      })}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+              <div className={"mt-4"}>{renderList()}</div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
     </Main>
   );
 };
+
+// Quyi tizim sarlavhasi "1-қуйи тизим..." ko'rinishida keladi
+function matchesSubsystem(item, id) {
+  const title = item.title || "";
+  return title.includes(`${id}-қуйи`) || title.includes(`${id}-quyi`);
+}
 
 export default Index;

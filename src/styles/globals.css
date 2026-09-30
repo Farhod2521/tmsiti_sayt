@@ -175,3 +175,17 @@ input[type='file']{
 
 
 
+
+.home-discussion-swiper .swiper-button-next,
+.home-discussion-swiper .swiper-button-prev {
+  color: #fff;
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.15);
+}
+.home-discussion-swiper .swiper-button-next::after,
+.home-discussion-swiper .swiper-button-prev::after {
+  font-size: 14px;
+  font-weight: 700;
+}
