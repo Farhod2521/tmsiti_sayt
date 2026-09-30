@@ -5,12 +5,13 @@ import Link from "next/link";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, Navigation } from "swiper/modules";
 import useGetTMSITIQuery from "@/hooks/api/useGetTMSITIQuery";
+import useDocumentsTotal from "@/hooks/api/useDocumentsTotal";
 import { KEYS } from "@/constants/key";
 import { URLS } from "@/constants/url";
 import { get, isEmpty } from "lodash";
 import dayjs from "dayjs";
 import React, { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import clsx from "clsx";
 
 // Import Swiper styles
@@ -35,7 +36,7 @@ import {
 const stats = [
   {
     id: 1,
-    value: "7 000+",
+    value: null, // API'dan: SHNQ + standartlar soni
     label: "home.stat_documents",
     Icon: DocumentIcon,
     iconClass: "bg-[#E8F0FE] text-[#2B5CD9]",
@@ -49,14 +50,14 @@ const stats = [
   },
   {
     id: 3,
-    value: "200+",
+    value: "72+",
     label: "home.stat_team",
     Icon: UsersIcon,
     iconClass: "bg-[#FFEEE4] text-[#F0692A]",
   },
   {
     id: 4,
-    value: "50+",
+    value: "22+",
     label: "home.stat_partners",
     Icon: GlobeIcon,
     iconClass: "bg-[#EEEAFD] text-[#5B44D8]",
@@ -70,6 +71,7 @@ const directions = [
     desc: "home.dir_documents_desc",
     url: "/shnq",
     image: "/images/home/dir-documents.jpg",
+    video: "/videos/cards/documents.mp4",
     Icon: DocumentIcon,
     cardClass: "from-[#EEF4FF] to-[#F6F9FF]",
     iconClass: "bg-[#DCE7FC] text-[#2B5CD9]",
@@ -81,6 +83,7 @@ const directions = [
     desc: "home.dir_research_desc",
     url: "https://sites.google.com/view/kompleks-sinov-laboratoriyasi/%D0%B3%D0%BB%D0%B0%D0%B2%D0%BD%D0%B0%D1%8F-%D1%81%D1%82%D1%80%D0%B0%D0%BD%D0%B8%D1%86%D0%B0",
     image: "/images/home/dir-research.jpg",
+    video: "/videos/cards/laboratory.mp4?v=2",
     Icon: FlaskIcon,
     cardClass: "from-[#E9F8F0] to-[#F4FBF7]",
     iconClass: "bg-[#D5F1E2] text-[#1E9E62]",
@@ -92,6 +95,7 @@ const directions = [
     desc: "home.dir_standards_desc",
     url: "/standards",
     image: "/images/home/dir-standards.jpg",
+    video: "/videos/cards/standards.mp4",
     Icon: GearIcon,
     cardClass: "from-[#FFF2E8] to-[#FFF8F3]",
     iconClass: "bg-[#FFE3D2] text-[#F0692A]",
@@ -103,6 +107,7 @@ const directions = [
     desc: "home.dir_cooperation_desc",
     url: null,
     image: "/images/home/dir-cooperation.jpg",
+    video: "/videos/cards/cooperation.mp4",
     Icon: UsersIcon,
     cardClass: "from-[#F1EEFD] to-[#F8F6FE]",
     iconClass: "bg-[#E4DEFB] text-[#5B44D8]",
@@ -156,6 +161,22 @@ const SectionLabel = ({ children }) => (
 export default function Home() {
   const { t } = useTranslation();
   const [videoOpen, setVideoOpen] = useState(false);
+  const reduceMotion = useReducedMotion();
+  const documentsTotal = useDocumentsTotal();
+  const [phraseIndex, setPhraseIndex] = useState(0);
+  const heroPhrases = [].concat(
+    t("home.hero_rotating", { returnObjects: true }) || []
+  );
+
+  // Hero sarlavhasidagi ko'k ibora har 3 soniyada almashadi
+  useEffect(() => {
+    if (heroPhrases.length < 2) return;
+    const timer = setInterval(
+      () => setPhraseIndex((prev) => (prev + 1) % heroPhrases.length),
+      3000
+    );
+    return () => clearInterval(timer);
+  }, [heroPhrases.length]);
   const lang = useSettingsStore((state) =>
     get(state, "lang", config.DEFAULT_APP_LANG)
   );
@@ -235,11 +256,36 @@ export default function Home() {
             <motion.h1
               {...fadeUp(0.2)}
               className={
-                "mt-5 max-w-[680px] text-[34px] sm:text-[44px] xl:text-[53px] leading-[1.08] font-extrabold tracking-[-0.02em] text-[#0B1A4F]"
+                "mt-5 text-[34px] sm:text-[44px] xl:text-[53px] leading-[1.08] font-extrabold tracking-[-0.02em] text-[#0B1A4F]"
               }
             >
-              {t("home.hero_title_1")}{" "}
-              <span className={"text-[#1D5BE8]"}>{t("home.hero_title_2")}</span>
+              <span className={"block max-w-[680px]"}>
+                {t("home.hero_title_1")}
+              </span>
+              {/* Barcha iboralar bitta katakda — joy eng uzuni bo'yicha band qilinadi, matn sakramaydi */}
+              <span className={"grid text-[#1D5BE8]"}>
+                {heroPhrases.map((phrase) => (
+                  <span
+                    key={phrase}
+                    aria-hidden={"true"}
+                    className={"invisible [grid-area:1/1] lg:whitespace-nowrap"}
+                  >
+                    {phrase}
+                  </span>
+                ))}
+                <AnimatePresence mode={"wait"} initial={false}>
+                  <motion.span
+                    key={heroPhrases[phraseIndex]}
+                    initial={{ opacity: 0, y: 18 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -18 }}
+                    transition={{ duration: 0.45, ease: "easeOut" }}
+                    className={"[grid-area:1/1] lg:whitespace-nowrap"}
+                  >
+                    {heroPhrases[phraseIndex]}
+                  </motion.span>
+                </AnimatePresence>
+              </span>
             </motion.h1>
 
             <motion.p
@@ -340,7 +386,10 @@ export default function Home() {
                       "text-[20px] lg:text-[22px] font-bold leading-tight text-[#0B1A4F]"
                     }
                   >
-                    {value}
+                    {value ??
+                      (documentsTotal.hasData
+                        ? `${documentsTotal.total.toLocaleString("ru-RU")}+`
+                        : "—")}
                   </p>
                   <p className={"text-[13px] lg:text-[14px] text-[#5B6788]"}>
                     {t(label)}
@@ -474,15 +523,32 @@ export default function Home() {
                       "relative mt-3 h-[150px] xl:h-[114px] rounded-[14px] overflow-hidden"
                     }
                   >
-                    <Image
-                      src={item.image}
-                      alt={t(item.title)}
-                      fill
-                      sizes={"(min-width: 1280px) 320px, 50vw"}
-                      className={
-                        "object-cover group-hover:scale-105 transition-transform duration-500"
-                      }
-                    />
+                    {item.video && !reduceMotion ? (
+                      // GIF kabi: ovozsiz, avtomatik, cheksiz takrorlanadi
+                      <video
+                        src={item.video}
+                        poster={item.image}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        preload={"metadata"}
+                        aria-label={t(item.title)}
+                        className={
+                          "absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        }
+                      />
+                    ) : (
+                      <Image
+                        src={item.image}
+                        alt={t(item.title)}
+                        fill
+                        sizes={"(min-width: 1280px) 320px, 50vw"}
+                        className={
+                          "object-cover group-hover:scale-105 transition-transform duration-500"
+                        }
+                      />
+                    )}
                   </div>
                 </DirectionLink>
               </motion.div>
