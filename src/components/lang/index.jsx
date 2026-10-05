@@ -6,23 +6,14 @@ import { useTranslation } from "react-i18next";
 
 const Lang = ({}) => {
   const { t, i18n } = useTranslation();
-  const [selectedLanguage, setSelectedLanguage] = useState(""); // Initialize with an empty string
+  const lang = useSettingsStore((state) => get(state, "lang", "uz"));
   const setLang = useSettingsStore((state) => get(state, "setLang", () => {}));
-
-  useEffect(() => {
-    setSelectedLanguage(selectedLanguage);
-    setLang(selectedLanguage);
-  }, [selectedLanguage]);
-
-  useEffect(() => {
-    setLang(selectedLanguage);
-  }, [selectedLanguage]);
+  const selectedLanguage = lang || "uz";
 
   const languages = ["uz", "en", "ru"];
 
   const handleLanguageChange = (event) => {
-    setSelectedLanguage(event.target.value);
-    i18n.changeLanguage(event.target.value);
+    setLang(event.target.value); // LanguageSync (_app.js) i18n ni almashtiradi
   };
 
   return (

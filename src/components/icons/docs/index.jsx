@@ -342,3 +342,68 @@ export const PrinterIcon = ({ className }) => (
     <path d="M17 11h.01" />
   </svg>
 );
+
+export const ShareIcon = ({ className }) => (
+  <svg className={className} {...base}>
+    <circle cx="18" cy="5.5" r="2.5" />
+    <circle cx="6" cy="12" r="2.5" />
+    <circle cx="18" cy="18.5" r="2.5" />
+    <path d="m8.2 10.8 7.6-4.1M8.2 13.2l7.6 4.1" />
+  </svg>
+);
+
+export const HistoryIcon = ({ className }) => (
+  <svg className={className} {...base}>
+    <path d="M3.5 12a8.5 8.5 0 1 0 2.5-6" />
+    <path d="M3.5 4v4h4" />
+    <path d="M12 7.5V12l3 2" />
+  </svg>
+);
+
+export const GlobeIcon = ({ className }) => (
+  <svg className={className} {...base}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M3.5 12h17M12 3.5c2.3 2.4 3.4 5.2 3.4 8.5s-1.1 6.1-3.4 8.5c-2.3-2.4-3.4-5.2-3.4-8.5s1.1-6.1 3.4-8.5Z" />
+  </svg>
+);
+
+export const LockIcon = ({ className }) => (
+  <svg className={className} {...base}>
+    <rect x="4.5" y="10.5" width="15" height="10" rx="2.2" />
+    <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
+    <path d="M12 14.5v2" />
+  </svg>
+);
+
+export const UploadIcon = ({ className }) => (
+  <svg className={className} {...base}>
+    <path d="M12 15V4M7.5 8.5 12 4l4.5 4.5" />
+    <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+  </svg>
+);
+
+export const EditIcon = ({ className }) => (
+  <svg className={className} {...base}>
+    <path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4Z" />
+    <path d="m13.5 6.5 4 4" />
+  </svg>
+);
+
+export const LogoutIcon = ({ className }) => (
+  <svg className={className} {...base}>
+    <path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4" />
+    <path d="M10 16.5 5.5 12 10 7.5M5.5 12H16" />
+  </svg>
+);
+
+export const MinusIcon = ({ className }) => (
+  <svg className={className} {...base} strokeWidth={2}>
+    <path d="M5 12h14" />
+  </svg>
+);
+
+export const PlusIcon = ({ className }) => (
+  <svg className={className} {...base} strokeWidth={2}>
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+);

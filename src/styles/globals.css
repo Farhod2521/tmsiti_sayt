@@ -189,3 +189,43 @@ input[type='file']{
   font-size: 14px;
   font-weight: 700;
 }
+
+/* ===== SHNQ hujjat matni (lex.uz ko'rinishi) — src/pages/shnq/[id].js ===== */
+.lex-doc { color: #1E2B5A; line-height: 1.75; word-wrap: break-word; }
+.lex-doc [data-align="center"] { text-align: center; }
+.lex-doc [data-align="right"] { text-align: right; }
+.lex-doc [data-align="justify"] { text-align: justify; }
+.lex-doc .lex-block { border-radius: 10px; transition: background-color .6s; }
+.lex-doc .lex-flash { background-color: #FFF6DB; }
+.lex-doc .lex-p { margin: 0 0 .6em; }
+.lex-doc .lex-p.indent { text-indent: 2em; }
+.lex-doc .lex-p.title { color: #1D2C8F; text-transform: uppercase; font-weight: 600; margin-bottom: .2em; }
+.lex-doc .lex-p.bold { font-weight: 700; }
+.lex-doc .lex-p.italic { font-style: italic; }
+.lex-doc .lex-p.small { font-size: .9em; color: #5B6788; margin-bottom: .1em; }
+.lex-doc .lex-p.banner { font-size: .9em; color: #1D2C8F; margin-left: 45%; text-align: center; }
+.lex-doc .lex-p.comment { font-style: italic; color: #7A1F7A; font-size: .94em; }
+.lex-doc .lex-p.footnote { font-size: .92em; color: #2F6B4F; }
+.lex-doc .lex-p.source { font-size: .88em; color: #5B6788; font-style: italic; }
+.lex-doc .lex-h { font-weight: 700; color: #1D2C8F; margin: 1.3em 0 .7em; font-size: 1.05em; text-align: center; }
+.lex-doc .lex-h.lvl1 { background: #EEF4FF; color: #1D5BE8; text-align: left; padding: .7em 1em; border-radius: 12px; font-size: 1.12em; }
+.lex-doc .lex-note { font-style: italic; color: #8B1A1A; font-size: .92em; margin: -.3em 0 .7em; text-indent: 2em; }
+.lex-doc .lex-note a { color: #8B1A1A; text-decoration: underline; }
+.lex-doc .lex-prev-link { display: inline-flex; align-items: center; gap: .35em; color: #0F8A5F; font-style: italic; font-size: .9em; margin-bottom: .2em; cursor: pointer; }
+.lex-doc .lex-prev-link:hover { text-decoration: underline; }
+.lex-doc .lex-prev-box { border-left: 3px solid #F5B400; background: #FFFBEB; padding: .7em 1em; border-radius: 10px; margin: .2em 0 .8em; font-size: .95em; }
+.lex-doc .lex-prev-box .lex-note { margin-top: 0; }
+.lex-doc .lex-removed { border: 1px dashed #E5A3A3; background: #FFF7F7; border-radius: 10px; padding: .5em 1em; margin: 0 0 .7em; }
+.lex-doc table { border-collapse: collapse; width: 100%; font-size: .88em; line-height: 1.45; margin: .4em 0; }
+.lex-doc td, .lex-doc th { border: 1px solid #CBD5E1; padding: .35em .5em; vertical-align: top; }
+.lex-doc td p, .lex-doc th p { margin: 0; text-indent: 0; }
+.lex-doc .lex-table-wrap { overflow-x: auto; margin: 0 0 .8em; }
+.lex-doc img { max-width: 100%; height: auto; display: inline-block; vertical-align: middle; }
+.lex-doc a { color: #0E7C86; }
+.lex-doc a:hover { text-decoration: underline; }
+.lex-doc sup, .lex-doc sub { font-size: .7em; }
+.lex-doc .math { font-family: "Cambria Math", "Times New Roman", serif; font-style: italic; }
+@media (max-width: 767px) {
+  .lex-doc .lex-p.banner { margin-left: 0; }
+  .lex-doc .lex-p.indent { text-indent: 1.2em; }
+}

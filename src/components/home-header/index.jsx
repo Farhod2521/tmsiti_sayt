@@ -55,13 +55,11 @@ const languages = ["uz", "ru", "en"];
 
 const LangSelect = () => {
   const { i18n } = useTranslation();
-  const lang = useSettingsStore((state) =>
-    get(state, "lang", config.DEFAULT_APP_LANG)
-  );
   const setLang = useSettingsStore((state) => get(state, "setLang", () => {}));
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
-  const current = lang || i18n.language || config.DEFAULT_APP_LANG;
+  // i18n tili ko'rsatiladi: server va klientning birinchi renderi bir xil bo'ladi
+  const current = i18n.language || config.DEFAULT_APP_LANG;
 
   useEffect(() => {
     const onClick = (e) => {
@@ -72,8 +70,7 @@ const LangSelect = () => {
   }, []);
 
   const changeLang = (value) => {
-    setLang(value);
-    i18n.changeLanguage(value);
+    setLang(value); // LanguageSync (_app.js) i18n ni o'zi almashtiradi
     setOpen(false);
   };
 

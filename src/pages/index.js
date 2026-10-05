@@ -159,7 +159,7 @@ const SectionLabel = ({ children }) => (
 );
 
 export default function Home() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [videoOpen, setVideoOpen] = useState(false);
   const reduceMotion = useReducedMotion();
   const documentsTotal = useDocumentsTotal();
@@ -167,6 +167,9 @@ export default function Home() {
   const heroPhrases = [].concat(
     t("home.hero_rotating", { returnObjects: true }) || []
   );
+
+  // Til almashganda ibora boshidan boshlanadi (eski tildagi indeks qolib ketmasin)
+  useEffect(() => setPhraseIndex(0), [i18n.language]);
 
   // Hero sarlavhasidagi ko'k ibora har 3 soniyada almashadi
   useEffect(() => {
@@ -176,7 +179,7 @@ export default function Home() {
       3000
     );
     return () => clearInterval(timer);
-  }, [heroPhrases.length]);
+  }, [heroPhrases.length, i18n.language]);
   const lang = useSettingsStore((state) =>
     get(state, "lang", config.DEFAULT_APP_LANG)
   );
@@ -273,16 +276,18 @@ export default function Home() {
                     {phrase}
                   </span>
                 ))}
-                <AnimatePresence mode={"wait"} initial={false}>
+                {/* mode="wait" ishlatilmaydi: til va taymer bir vaqtda o'zgarsa navbat tiqilib,
+                    eski tildagi ibora yoki bo'sh qator qolib ketardi. Iboralar bir katakda ustma-ust almashadi. */}
+                <AnimatePresence initial={false}>
                   <motion.span
-                    key={heroPhrases[phraseIndex]}
+                    key={`${i18n.language}-${phraseIndex}`}
                     initial={{ opacity: 0, y: 18 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -18 }}
                     transition={{ duration: 0.45, ease: "easeOut" }}
                     className={"[grid-area:1/1] lg:whitespace-nowrap"}
                   >
-                    {heroPhrases[phraseIndex]}
+                    {heroPhrases[phraseIndex % heroPhrases.length]}
                   </motion.span>
                 </AnimatePresence>
               </span>

@@ -360,6 +360,11 @@ const Index = () => {
       handleNavigateToSRN(doc.designation);
       return;
     }
+    // Hujjat sahifasi: lex.uz ko'rinishidagi matn (yoki matn bo'lmasa PDF)
+    if (doc.id) {
+      router.push(`/shnq/${doc.id}`);
+      return;
+    }
     const fileUrl = getPdfUrl(doc);
     if (fileUrl) window.open(fileUrl, "_blank");
   };
@@ -387,7 +392,7 @@ const Index = () => {
     setOpenActions(null);
   };
 
-  const isViewDisabled = (doc) => !isSrnDoc(doc) && !getPdfUrl(doc);
+  const isViewDisabled = (doc) => !isSrnDoc(doc) && !doc.id && !getPdfUrl(doc);
 
   // openItems/openGroups: true — yopiq
   const toggleItem = (index) => {

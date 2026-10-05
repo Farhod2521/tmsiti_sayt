@@ -14,10 +14,9 @@ import Menu from "@/components/menu";
 const Index = () => {
   const router = useRouter();
   const { slug, isNewApi } = router.query;
-  const lang = useSettingsStore((state) =>
-    get(state, "lang", config.DEFAULT_APP_LANG),
-  );
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  // i18n tili: server va klientning birinchi renderi bir xil (LanguageSync keyin almashtiradi)
+  const lang = i18n.language || config.DEFAULT_APP_LANG;
 
   // Eski API uchun
   const { data: oldApiData, isLoading: oldApiLoading } = useGetTMSITIQuery({
