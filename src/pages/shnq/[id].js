@@ -33,7 +33,8 @@ const API = config.BASE_MAIN_API;
 const MEDIA_URL = config.MEDIA_URL;
 const FAVORITES_KEY = "shnq_favorites";
 const FONT_MIN = 13;
-const FONT_MAX = 22;
+const FONT_MAX = 24;
+const FONT_DEFAULT = 17;
 
 const cardShadow = "shadow-[0_8px_30px_rgba(16,42,116,0.06)]";
 const card = clsx("bg-white rounded-[18px] border border-[#EEF2FA]", cardShadow);
@@ -54,8 +55,6 @@ const splitDesignation = (designation = "") => {
   const isQmq = /ҚМҚ|QMQ/i.test(match[1]);
   return { label: isQmq ? "QMQ" : "SHNQ", number: match[2] };
 };
-
-const LANG_LABELS = { uz: "O'zbekcha", ru: "Русский" };
 
 // Tahrir tarixidan lex.uz dagi kabi izoh matni
 const historyNote = (entry, lang) => {
@@ -79,7 +78,7 @@ const Index = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [fontSize, setFontSize] = useState(16);
+  const [fontSize, setFontSize] = useState(FONT_DEFAULT);
   const [tocQuery, setTocQuery] = useState("");
   const [activeId, setActiveId] = useState(null);
   const [openPrev, setOpenPrev] = useState({});
@@ -241,8 +240,6 @@ const Index = () => {
     window.open(url, "_blank", "noopener");
   };
 
-  const mainDownload = () => download(pdfName || edition?.file);
-
   const togglePrev = (blockId) =>
     setOpenPrev((prev) => ({ ...prev, [blockId]: !prev[blockId] }));
 
@@ -374,25 +371,6 @@ const Index = () => {
   const hasBothLangs = (data.languages || []).length > 1;
   const isOld = content && !content.is_latest;
   const latestInLang = editionsInLang[editionsInLang.length - 1];
-
-  const infoRows = [
-    ["Shifr", data.designation],
-    ["Nomi", title],
-    [
-      "Holati",
-      data.status ? (
-        <span className={"px-2 py-0.5 rounded-md text-[12px] bg-[#E6F6EC] text-[#1E9E62]"}>Amalda</span>
-      ) : (
-        <span className={"px-2 py-0.5 rounded-md text-[12px] bg-[#FDECEC] text-[#E5484D]"}>Bekor qilingan</span>
-      ),
-    ],
-    ["Tahrir sanasi", edition ? formatDate(edition.date) : "—"],
-    ["Hujjat turi", label || "—"],
-    ["Guruh", groupTitle || "—"],
-    ["Tili", LANG_LABELS[docLang]],
-    ["Ko'rishlar soni", (data.views || 0).toLocaleString("ru-RU")],
-    ["Yuklab olingan", (data.downloads || 0).toLocaleString("ru-RU")],
-  ];
 
   const actionBtn =
     "h-[40px] px-4 rounded-[12px] flex items-center gap-x-2 text-[14px] font-medium transition-colors";
@@ -585,7 +563,7 @@ const Index = () => {
                       <button type={"button"} onClick={() => setFontSize((s) => Math.max(FONT_MIN, s - 1))} className={"w-8 h-8 flex items-center justify-center hover:bg-[#F5F8FF] rounded-l-[10px]"} aria-label={"Kichraytirish"}>
                         <MinusIcon className={"w-4 h-4"} />
                       </button>
-                      <button type={"button"} onClick={() => setFontSize(16)} className={"w-8 h-8 font-semibold text-[#0B1A4F]"} title={"Asl o'lcham"}>A</button>
+                      <button type={"button"} onClick={() => setFontSize(FONT_DEFAULT)} className={"w-8 h-8 font-semibold text-[#0B1A4F]"} title={"Asl o'lcham"}>A</button>
                       <button type={"button"} onClick={() => setFontSize((s) => Math.min(FONT_MAX, s + 1))} className={"w-8 h-8 flex items-center justify-center hover:bg-[#F5F8FF] rounded-r-[10px]"} aria-label={"Kattalashtirish"}>
                         <PlusIcon className={"w-4 h-4"} />
                       </button>
@@ -633,15 +611,21 @@ const Index = () => {
                     </div>
                   )}
 
-                  <div className={"flex items-center gap-2 ml-auto"}>
-                    {content && (
-                      <button type={"button"} onClick={() => window.print()} className={"h-9 px-3 rounded-[10px] bg-[#EEF4FF] text-[#1D5BE8] text-[13px] font-medium flex items-center gap-2 hover:bg-[#DCE7FF]"}>
-                        <PrinterIcon className={"w-4 h-4"} /> Chop etish
+                  {/* Amallar */}
+                  <div className={"flex flex-wrap items-center gap-2 ml-auto"}>
+                    {pdfName && (
+                      <button type={"button"} onClick={() => download(pdfName)} className={"h-9 px-4 rounded-[10px] bg-[#1D5BE8] text-white text-[13px] font-semibold flex items-center gap-2 hover:bg-[#174FD0]"}>
+                        <DownloadIcon className={"w-4 h-4"} /> PDF yuklab olish
                       </button>
                     )}
-                    {(pdfName || edition?.file) && (
-                      <button type={"button"} onClick={mainDownload} className={"h-9 px-3 rounded-[10px] bg-[#EEF4FF] text-[#1D5BE8] text-[13px] font-medium flex items-center gap-2 hover:bg-[#DCE7FF]"}>
-                        <DownloadIcon className={"w-4 h-4"} /> Yuklab olish
+                    {edition?.file && (
+                      <button type={"button"} onClick={() => download(edition.file)} className={clsx("h-9 px-4 rounded-[10px] text-[13px] font-semibold flex items-center gap-2", pdfName ? "bg-[#EEF4FF] text-[#1D5BE8] hover:bg-[#DCE7FF]" : "bg-[#1D5BE8] text-white hover:bg-[#174FD0]")}>
+                        <DownloadIcon className={"w-4 h-4"} /> Word yuklab olish
+                      </button>
+                    )}
+                    {content && (
+                      <button type={"button"} onClick={() => window.print()} className={"h-9 px-4 rounded-[10px] bg-[#EEF4FF] text-[#1D5BE8] text-[13px] font-semibold flex items-center gap-2 hover:bg-[#DCE7FF]"}>
+                        <PrinterIcon className={"w-4 h-4"} /> Chop etish
                       </button>
                     )}
                   </div>
@@ -659,7 +643,7 @@ const Index = () => {
                   </div>
                 )}
 
-                <div id={"shnq-print"} className={clsx("px-4 md:px-8 py-6 transition-opacity", loading && "opacity-50")}>
+                <div id={"shnq-print"} className={clsx("px-4 md:px-10 xl:px-14 py-6 md:py-8 transition-opacity", loading && "opacity-50")}>
                   {content ? (
                     <div ref={contentRef} className={"lex-doc"} style={{ fontSize: `${fontSize}px` }} onClick={onContentClick}>
                       {blocks.map(renderBlock)}
@@ -681,112 +665,6 @@ const Index = () => {
               </div>
             </div>
 
-            {/* O'ng panel */}
-            <aside className={"w-full lg:w-[300px] shrink-0 space-y-5"}>
-              <div className={clsx(card, "p-5")}>
-                <div className={"flex items-center gap-3 text-[16px] font-bold"}>
-                  <FileTextIcon className={"w-6 h-6 text-[#1D5BE8]"} /> Hujjat haqida
-                </div>
-                <dl className={"mt-4 space-y-2.5 text-[13px]"}>
-                  {infoRows.map(([key, value]) => (
-                    <div key={key} className={"grid grid-cols-[120px_1fr] gap-2"}>
-                      <dt className={"text-[#5B6788]"}>{key}:</dt>
-                      <dd className={"text-[#0B1A4F] break-words"}>{value}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </div>
-
-              <div className={clsx(card, "p-5")}>
-                <div className={"flex items-center gap-3 text-[16px] font-bold"}>
-                  <DownloadIcon className={"w-6 h-6 text-[#1D5BE8]"} /> Amallar
-                </div>
-                <div className={"mt-4 space-y-2"}>
-                  {pdfName && (
-                    <button type={"button"} onClick={() => download(pdfName)} className={"w-full h-[42px] rounded-[12px] bg-[#1D5BE8] text-white text-[14px] font-semibold flex items-center justify-center gap-2 hover:bg-[#174FD0]"}>
-                      <DownloadIcon className={"w-5 h-5"} /> PDF yuklab olish
-                    </button>
-                  )}
-                  {edition?.file && (
-                    <button type={"button"} onClick={() => download(edition.file)} className={clsx("w-full h-[42px] rounded-[12px] text-[14px] font-semibold flex items-center justify-center gap-2", pdfName ? "bg-[#EEF4FF] text-[#1D5BE8] hover:bg-[#DCE7FF]" : "bg-[#1D5BE8] text-white hover:bg-[#174FD0]")}>
-                      <DownloadIcon className={"w-5 h-5"} /> Word yuklab olish
-                    </button>
-                  )}
-                  {content && (
-                    <button type={"button"} onClick={() => window.print()} className={"w-full h-[42px] rounded-[12px] bg-[#EEF4FF] text-[#1D5BE8] text-[14px] font-semibold flex items-center justify-center gap-2 hover:bg-[#DCE7FF]"}>
-                      <PrinterIcon className={"w-5 h-5"} /> Chop etish
-                    </button>
-                  )}
-                  <button type={"button"} onClick={toggleFavorite} className={"w-full h-[42px] rounded-[12px] border border-[#DCE3F0] text-[#1D5BE8] text-[14px] font-semibold flex items-center justify-center gap-2 hover:bg-[#F5F8FF]"}>
-                    <StarIcon className={"w-5 h-5"} filled={isFavorite} />
-                    {isFavorite ? "Sevimlilardan olib tashlash" : "Sevimlilarga qo'shish"}
-                  </button>
-                </div>
-              </div>
-
-              {editionsInLang.length > 0 && (
-                <div className={clsx(card, "p-5")}>
-                  <div className={"flex items-center gap-3 text-[16px] font-bold"}>
-                    <HistoryIcon className={"w-6 h-6 text-[#1D5BE8]"} /> Tahrirlar tarixi
-                  </div>
-                  <ol className={"mt-4 relative border-l-2 border-[#E3E9F5] ml-2 space-y-4"}>
-                    {editionsInLang
-                      .slice()
-                      .reverse()
-                      .map((e) => {
-                        const active = e.id === edition?.id;
-                        const latest = e.id === latestInLang?.id;
-                        const s = e.stats || {};
-                        return (
-                          <li key={e.id} className={"pl-4 relative"}>
-                            <span className={clsx("absolute -left-[7px] top-1.5 w-3 h-3 rounded-full border-2 border-white", active ? "bg-[#1D5BE8]" : "bg-[#B8C6E6]")} />
-                            <button type={"button"} onClick={() => selectEdition(e.id, latest)} className={clsx("text-left w-full rounded-[10px] px-2 py-1.5 -mx-2 transition-colors", active ? "bg-[#EEF4FF]" : "hover:bg-[#F5F8FF]")}>
-                              <span className={"flex items-center gap-2 text-[13px] font-semibold"}>
-                                {formatDate(e.date)}
-                                {latest && <span className={"px-1.5 py-0.5 rounded bg-[#E6F6EC] text-[#1E9E62] text-[11px] font-medium"}>amaldagi</span>}
-                                {s.original && <span className={"px-1.5 py-0.5 rounded bg-[#F1F4FA] text-[#5B6788] text-[11px] font-medium"}>asl tahrir</span>}
-                              </span>
-                              {e.note && <span className={"block mt-0.5 text-[12px] leading-[1.4] text-[#5B6788]"}>{e.note}</span>}
-                              {!s.original && (s.changed || s.added || s.removed) ? (
-                                <span className={"block mt-1 text-[11.5px] text-[#8A95B0]"}>
-                                  {[s.changed && `${s.changed} ta o'zgargan`, s.added && `${s.added} ta qo'shilgan`, s.removed && `${s.removed} ta chiqarilgan`].filter(Boolean).join(" · ")}
-                                </span>
-                              ) : null}
-                            </button>
-                          </li>
-                        );
-                      })}
-                  </ol>
-                </div>
-              )}
-
-              {data.related?.length > 0 && (
-                <div className={clsx(card, "p-5")}>
-                  <div className={"flex items-center justify-between"}>
-                    <div className={"flex items-center gap-3 text-[16px] font-bold"}>
-                      <FileTextIcon className={"w-6 h-6 text-[#1D5BE8]"} /> Tegishli hujjatlar
-                    </div>
-                    <Link href={"/shnq"} className={"text-[12px] font-medium text-[#1D5BE8]"}>Barchasi →</Link>
-                  </div>
-                  <ul className={"mt-3 divide-y divide-[#EEF2FA]"}>
-                    {data.related.map((doc) => (
-                      <li key={doc.id}>
-                        <Link href={`/shnq/${doc.id}`} className={"flex items-center gap-3 py-3 group"}>
-                          <span className={"w-9 h-9 shrink-0 rounded-[10px] bg-[#EEF4FF] text-[#1D5BE8] flex items-center justify-center"}>
-                            <FileTextIcon className={"w-5 h-5"} />
-                          </span>
-                          <span className={"flex-1 min-w-0"}>
-                            <span className={"block text-[13px] font-semibold group-hover:text-[#1D5BE8]"}>{doc.designation}</span>
-                            <span className={"block text-[12px] text-[#5B6788] truncate"}>{docLang === "ru" ? doc.name_ru || doc.name_uz : doc.name_uz}</span>
-                          </span>
-                          <ChevronRightIcon className={"w-4 h-4 text-[#8A95B0]"} />
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </aside>
           </div>
         </section>
       </div>
