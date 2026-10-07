@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import clsx from "clsx";
 import axios from "axios";
 import toast from "react-hot-toast";
@@ -29,6 +30,18 @@ const ACCEPT = ".doc,.docx,.htm,.html";
 const card = "bg-white rounded-[18px] border border-[#EEF2FA] shadow-[0_8px_30px_rgba(16,42,116,0.06)]";
 const input =
   "w-full h-[44px] px-4 rounded-[12px] border border-[#DCE3F0] text-[14px] text-[#0B1A4F] placeholder:text-[#8A95B0] outline-none focus:border-[#1D5BE8] focus:ring-4 focus:ring-[#1D5BE8]/10 transition bg-white";
+
+// Hujjat tillari: uz — o'zbek (lotin), kr — o'zbek (kirill), ru — rus
+const LANGS = [
+  { id: "uz", label: "O'zbekcha", hint: "lotin", short: "UZ" },
+  { id: "kr", label: "Ўзбекча", hint: "кирилл", short: "ЎЗ" },
+  { id: "ru", label: "Русский", hint: "rus", short: "RU" },
+];
+const langLabel = (id) => {
+  const l = LANGS.find((x) => x.id === id);
+  return l ? `${l.label} (${l.hint})` : id;
+};
+const langShort = (id) => LANGS.find((x) => x.id === id)?.short || id;
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -105,13 +118,14 @@ const EditionRow = ({ edition, docId, client, onChanged }) => {
   const [editing, setEditing] = useState(false);
   const [date, setDate] = useState(edition.date);
   const [note, setNote] = useState(edition.note || "");
+  const [lang, setLang] = useState(edition.lang);
   const [busy, setBusy] = useState(false);
   const s = edition.stats || {};
 
   const save = async () => {
     setBusy(true);
     try {
-      await client.patch(`shnq-admin/editions/${edition.id}/`, { edition_date: date, note });
+      await client.patch(`shnq-admin/editions/${edition.id}/`, { edition_date: date, note, lang });
       toast.success("Saqlandi");
       setEditing(false);
       onChanged();
@@ -153,8 +167,13 @@ const EditionRow = ({ edition, docId, client, onChanged }) => {
   return (
     <li className={clsx("rounded-[14px] border p-4", edition.error ? "border-[#F5C2C2] bg-[#FFF7F7]" : "border-[#EEF2FA]")}>
       {editing ? (
-        <div className={"grid gap-3 md:grid-cols-[170px_1fr_auto] items-center"}>
+        <div className={"grid gap-3 md:grid-cols-[170px_190px_1fr_auto] items-center"}>
           <input type={"date"} value={date} onChange={(e) => setDate(e.target.value)} className={input} />
+          <select value={lang} onChange={(e) => setLang(e.target.value)} className={clsx(input, "cursor-pointer")}>
+            {LANGS.map((l) => (
+              <option key={l.id} value={l.id}>{langLabel(l.id)}</option>
+            ))}
+          </select>
           <input value={note} onChange={(e) => setNote(e.target.value)} className={input} placeholder={"O'zgartirish kiritgan hujjat"} />
           <div className={"flex gap-2"}>
             <button type={"button"} onClick={save} disabled={busy} className={clsx(iconBtn, "bg-[#1D5BE8] text-white")} title={"Saqlash"}>
@@ -170,7 +189,7 @@ const EditionRow = ({ edition, docId, client, onChanged }) => {
           <div className={"flex-1 min-w-0"}>
             <div className={"flex flex-wrap items-center gap-2"}>
               <span className={"text-[15px] font-bold text-[#0B1A4F]"}>{formatDate(edition.date)}</span>
-              <span className={"px-2 py-0.5 rounded-md bg-[#F1F4FA] text-[11px] font-semibold uppercase text-[#5B6788]"}>{edition.lang}</span>
+              <span className={"px-2 py-0.5 rounded-md bg-[#F1F4FA] text-[11px] font-semibold text-[#5B6788]"}>{langShort(edition.lang)}</span>
               {s.original && <span className={"px-2 py-0.5 rounded-md bg-[#E8F0FE] text-[11px] font-medium text-[#1D5BE8]"}>asl tahrir</span>}
               {edition.error && <span className={"px-2 py-0.5 rounded-md bg-[#FDECEC] text-[11px] font-medium text-[#E5484D]"}>xato</span>}
             </div>
@@ -223,13 +242,15 @@ const EditionRow = ({ edition, docId, client, onChanged }) => {
 // ===================================================================
 const UploadForm = ({ doc, client, onUploaded }) => {
   const [file, setFile] = useState(null);
-  const [lang, setLang] = useState("uz");
+  const [lang, setLang] = useState("auto");
   const [date, setDate] = useState(today());
   const [note, setNote] = useState("");
   const [progress, setProgress] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef(null);
-  const isFirst = !(doc.editions || []).some((e) => e.lang === lang);
+  const editions = doc.editions || [];
+  const countIn = (id) => editions.filter((e) => e.lang === id).length;
+  const isFirst = lang === "auto" ? editions.length === 0 : countIn(lang) === 0;
 
   const pickFile = (f) => {
     if (!f) return;
@@ -255,11 +276,15 @@ const UploadForm = ({ doc, client, onUploaded }) => {
       });
       const s = data.stats || {};
       toast.success(
-        s.original
-          ? `Yuklandi: ${s.blocks} ta band, ${s.headings} ta bo'lim`
-          : `Yangi tahrir: ${s.changed || 0} o'zgargan, ${s.added || 0} qo'shilgan, ${s.removed || 0} chiqarilgan`,
-        { duration: 5000 }
+        `${langLabel(data.lang)} — ` +
+          (s.original
+            ? `yuklandi: ${s.blocks} ta band, ${s.headings} ta bo'lim`
+            : `yangi tahrir: ${s.changed || 0} o'zgargan, ${s.added || 0} qo'shilgan, ${s.removed || 0} chiqarilgan`),
+        { duration: 6000 }
       );
+      if (data.lang_corrected) {
+        toast(`Fayl yozuvi boshqacha ekan — "${langLabel(data.lang)}" sifatida saqlandi`, { icon: "ℹ️", duration: 7000 });
+      }
       setFile(null);
       setNote("");
       if (fileRef.current) fileRef.current.value = "";
@@ -316,14 +341,33 @@ const UploadForm = ({ doc, client, onUploaded }) => {
         )}
       </div>
 
-      <div className={"mt-4 grid gap-3 sm:grid-cols-2"}>
-        <div>
-          <label className={"text-[13px] font-semibold text-[#0B1A4F]"}>Til</label>
-          <select value={lang} onChange={(e) => setLang(e.target.value)} className={clsx(input, "mt-1.5 cursor-pointer")}>
-            <option value={"uz"}>O&apos;zbekcha</option>
-            <option value={"ru"}>Русский</option>
-          </select>
+      <div className={"mt-4"}>
+        <label className={"text-[13px] font-semibold text-[#0B1A4F]"}>Hujjat tili</label>
+        <div className={"mt-1.5 grid grid-cols-2 sm:grid-cols-4 gap-2"}>
+          {[{ id: "auto", label: "Avtomatik", hint: "matndan aniqlanadi" }, ...LANGS].map((l) => {
+            const n = l.id === "auto" ? null : countIn(l.id);
+            const active = lang === l.id;
+            return (
+              <button
+                key={l.id}
+                type={"button"}
+                onClick={() => setLang(l.id)}
+                className={clsx(
+                  "rounded-[12px] border-2 px-3 py-2.5 text-left transition-colors",
+                  active ? "border-[#1D5BE8] bg-[#EEF4FF]" : "border-[#E3E9F5] hover:border-[#B8C6E6]"
+                )}
+              >
+                <span className={clsx("block text-[14px] font-semibold", active ? "text-[#1D5BE8]" : "text-[#0B1A4F]")}>{l.label}</span>
+                <span className={"block text-[12px] text-[#8A95B0]"}>
+                  {n === null ? l.hint : n > 0 ? `${l.hint} · ${n} tahrir bor` : `${l.hint} · hali yo'q`}
+                </span>
+              </button>
+            );
+          })}
         </div>
+      </div>
+
+      <div className={"mt-3 grid gap-3 sm:grid-cols-2"}>
         <div>
           <label className={"text-[13px] font-semibold text-[#0B1A4F]"}>{isFirst ? "Qabul qilingan sana" : "O'zgartirish sanasi"}</label>
           <input type={"date"} required value={date} onChange={(e) => setDate(e.target.value)} className={clsx(input, "mt-1.5")} />
@@ -389,7 +433,13 @@ const Dashboard = ({ token, onLogout }) => {
   const [page, setPage] = useState(1);
   const [list, setList] = useState(null);
   const [listLoading, setListLoading] = useState(false);
+  const router = useRouter();
   const [selectedId, setSelectedId] = useState(null);
+
+  // /admin?doc=12 — hujjatni to'g'ridan-to'g'ri ochish
+  useEffect(() => {
+    if (router.isReady && router.query.doc) setSelectedId(Number(router.query.doc) || null);
+  }, [router.isReady, router.query.doc]);
   const [doc, setDoc] = useState(null);
   const [docLoading, setDocLoading] = useState(false);
 
@@ -516,7 +566,12 @@ const Dashboard = ({ token, onLogout }) => {
                     <span className={"flex items-center gap-2"}>
                       <span className={"text-[13px] font-bold"}>{item.designation}</span>
                       {item.editions_count > 0 ? (
-                        <span className={"px-1.5 py-0.5 rounded bg-[#E6F6EC] text-[11px] font-medium text-[#1E9E62]"}>{item.editions_count} tahrir</span>
+                        <>
+                          <span className={"px-1.5 py-0.5 rounded bg-[#E6F6EC] text-[11px] font-medium text-[#1E9E62]"}>{item.editions_count} tahrir</span>
+                          {(item.languages || []).map((l) => (
+                            <span key={l} className={"px-1.5 py-0.5 rounded bg-[#EEF4FF] text-[10.5px] font-semibold text-[#1D5BE8]"}>{langShort(l)}</span>
+                          ))}
+                        </>
                       ) : (
                         <span className={"px-1.5 py-0.5 rounded bg-[#F1F4FA] text-[11px] font-medium text-[#8A95B0]"}>matnsiz</span>
                       )}
@@ -587,10 +642,10 @@ const Dashboard = ({ token, onLogout }) => {
                       Hali matn yuklanmagan. Saytda hozircha PDF ko&apos;rsatiladi.
                     </p>
                   ) : (
-                    Object.entries(editionsByLang).map(([lang, items]) => (
+                    LANGS.filter((l) => editionsByLang[l.id]).map(({ id: lang }) => [lang, editionsByLang[lang]]).map(([lang, items]) => (
                       <div key={lang} className={"mt-4"}>
                         <p className={"mb-2 text-[12px] font-semibold uppercase tracking-wide text-[#8A95B0]"}>
-                          {lang === "ru" ? "Русский" : "O'zbekcha"}
+                          {langLabel(lang)}
                         </p>
                         <ul className={"space-y-2"}>
                           {items

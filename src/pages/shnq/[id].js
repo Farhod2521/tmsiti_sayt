@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
+import { useTranslation } from "react-i18next";
 import clsx from "clsx";
 import axios from "axios";
 import toast from "react-hot-toast";
@@ -56,23 +57,66 @@ const splitDesignation = (designation = "") => {
   return { label: isQmq ? "QMQ" : "SHNQ", number: match[2] };
 };
 
+// Hujjat tillari: uz — o'zbek (lotin), kr — o'zbek (kirill), ru — rus
+const DOC_LANGS = [
+  { id: "uz", label: "O'zbekcha", short: "UZ" },
+  { id: "kr", label: "Ўзбекча", short: "ЎЗ" },
+  { id: "ru", label: "Русский", short: "RU" },
+];
+const DOC_LANG_IDS = DOC_LANGS.map((l) => l.id);
+
+// Sayt tiliga qarab qaysi hujjat tili birinchi ochiladi
+const preferredLangs = (siteLang) => (siteLang === "ru" ? "ru,kr,uz" : "uz,kr,ru");
+
+// Hujjat tilidagi matnlar (lex.uz dagi kabi)
+const DOC_TEXTS = {
+  uz: {
+    prev: "Oldingi tahrirga qarang",
+    hidePrev: "Oldingi tahrirni yashirish",
+    hide: "Yashirish",
+    until: (d) => `${d} gacha amalda bo'lgan tahrir`,
+    change: (d) => `${d} dagi o'zgartirish`,
+    added: (s) => `(${s} bilan to'ldirilgan)`,
+    removed: (s) => `(${s} bilan chiqarilgan)`,
+    changed: (s) => `(${s} tahririda)`,
+  },
+  kr: {
+    prev: "Олдинги таҳрирга қаранг",
+    hidePrev: "Олдинги таҳрирни яшириш",
+    hide: "Яшириш",
+    until: (d) => `${d} гача амалда бўлган таҳрир`,
+    change: (d) => `${d} даги ўзгартириш`,
+    added: (s) => `(${s} билан тўлдирилган)`,
+    removed: (s) => `(${s} билан чиқарилган)`,
+    changed: (s) => `(${s} таҳририда)`,
+  },
+  ru: {
+    prev: "См. предыдущую редакцию",
+    hidePrev: "Скрыть предыдущую редакцию",
+    hide: "Скрыть",
+    until: (d) => `Редакция, действовавшая до ${d}`,
+    change: (d) => `изменения от ${d}`,
+    added: (s) => `(дополнен ${s})`,
+    removed: (s) => `(исключен ${s})`,
+    changed: (s) => `(в редакции ${s})`,
+  },
+};
+
 // Tahrir tarixidan lex.uz dagi kabi izoh matni
 const historyNote = (entry, lang) => {
-  const source = entry.note || `${formatDate(entry.date)} dagi o'zgartirish`;
-  if (lang === "ru") {
-    if (entry.kind === "added") return `(дополнен ${source})`;
-    if (entry.kind === "removed") return `(исключен ${source})`;
-    return `(в редакции ${source})`;
-  }
-  if (entry.kind === "added") return `(${source} bilan to'ldirilgan)`;
-  if (entry.kind === "removed") return `(${source} bilan chiqarilgan)`;
-  return `(${source} tahririda)`;
+  const tx = DOC_TEXTS[lang] || DOC_TEXTS.uz;
+  const source = entry.note || tx.change(formatDate(entry.date));
+  if (entry.kind === "added") return tx.added(source);
+  if (entry.kind === "removed") return tx.removed(source);
+  return tx.changed(source);
 };
 
 const Index = () => {
   const router = useRouter();
+  const { i18n } = useTranslation();
   const { id } = router.query;
-  const queryLang = router.query.lang === "ru" ? "ru" : router.query.lang === "uz" ? "uz" : null;
+  const queryLang = DOC_LANG_IDS.includes(router.query.lang) ? router.query.lang : null;
+  const prefer = preferredLangs(i18n.language);
   const queryEdition = router.query.edition || null;
 
   const [data, setData] = useState(null);
@@ -93,6 +137,7 @@ const Index = () => {
     if (!router.isReady || !id) return;
     const params = new URLSearchParams();
     if (queryLang) params.set("lang", queryLang);
+    else params.set("prefer", prefer); // til tanlanmagan — sayt tiliga mosini ochamiz
     if (queryEdition) params.set("edition", queryEdition);
     setLoading(true);
     setError(null);
@@ -110,7 +155,7 @@ const Index = () => {
         );
       })
       .finally(() => setLoading(false));
-  }, [router.isReady, id, queryLang, queryEdition]);
+  }, [router.isReady, id, queryLang, queryEdition, prefer]);
 
   useEffect(() => {
     if (!data) return;
@@ -132,7 +177,8 @@ const Index = () => {
 
   const content = data?.content || null;
   const edition = content?.edition || null;
-  const docLang = edition?.lang || queryLang || "uz";
+  const docLang = edition?.lang || queryLang || prefer.split(",")[0];
+  const tx = DOC_TEXTS[docLang] || DOC_TEXTS.uz;
   const blocks = useMemo(() => content?.blocks || [], [content]);
   const toc = useMemo(() => content?.toc || [], [content]);
   const editionsInLang = useMemo(
@@ -259,7 +305,7 @@ const Index = () => {
         <div key={block.id} id={block.id} className={"lex-block lex-removed scroll-mt-28"}>
           <p className={"lex-note !m-0 !indent-0"}>{historyNote(entry, docLang)}</p>
           <button type={"button"} className={"lex-prev-link"} onClick={() => togglePrev(block.id)}>
-            {isOpen ? "Yashirish" : "Oldingi tahrirga qarang"}
+            {isOpen ? tx.hide : tx.prev}
           </button>
           {isOpen && (
             <div className={"lex-prev-box"} dangerouslySetInnerHTML={{ __html: withMedia(block.html) }} />
@@ -301,14 +347,14 @@ const Index = () => {
         {prevEntries.length > 0 ? (
           <button type={"button"} className={"lex-prev-link print:hidden"} onClick={() => togglePrev(block.id)}>
             <HistoryIcon className={"w-[15px] h-[15px]"} />
-            {isOpen ? "Oldingi tahrirni yashirish" : "Oldingi tahrirga qarang"}
+            {isOpen ? tx.hidePrev : tx.prev}
           </button>
         ) : (
           block.lexprev &&
           isLexUrl && (
             <a href={data.url} target={"_blank"} rel={"noopener noreferrer"} className={"lex-prev-link print:hidden"}>
               <HistoryIcon className={"w-[15px] h-[15px]"} />
-              Oldingi tahrirga qarang (lex.uz)
+              {tx.prev} (lex.uz)
             </a>
           )
         )}
@@ -316,7 +362,7 @@ const Index = () => {
           prevEntries.map((entry, idx) => (
             <div key={idx} className={"lex-prev-box"}>
               <p className={"text-[12px] font-semibold not-italic text-[#B78100] mb-1"}>
-                {formatDate(entry.date)} gacha amalda bo&apos;lgan tahrir
+                {tx.until(formatDate(entry.date))}
               </p>
               <div dangerouslySetInnerHTML={{ __html: withMedia(entry.prev) }} />
             </div>
@@ -368,7 +414,7 @@ const Index = () => {
   const { label, number } = splitDesignation(data.designation);
   const title = (docLang === "ru" ? data.name_ru || data.name_uz : data.name_uz || data.name_ru) || "";
   const groupTitle = data.group ? (docLang === "ru" ? data.group.title_ru || data.group.title_uz : data.group.title_uz) : null;
-  const hasBothLangs = (data.languages || []).length > 1;
+  const available = data.languages || [];
   const isOld = content && !content.is_latest;
   const latestInLang = editionsInLang[editionsInLang.length - 1];
 
@@ -463,7 +509,7 @@ const Index = () => {
                     {[
                       label && { key: "type", text: label },
                       edition && { key: "date", text: formatDate(edition.date), Icon: CalendarIcon },
-                      { key: "lang", text: docLang.toUpperCase(), Icon: GlobeIcon },
+                      content && { key: "lang", text: DOC_LANGS.find((l) => l.id === docLang)?.label, Icon: GlobeIcon },
                       { key: "views", text: (data.views || 0).toLocaleString("ru-RU"), Icon: EyeIcon },
                     ]
                       .filter(Boolean)
@@ -556,6 +602,36 @@ const Index = () => {
             {/* Matn */}
             <div className={"flex-1 min-w-0 w-full"}>
               <div className={clsx(card, "overflow-hidden")}>
+                {/* Hujjat tili: mavjud bo'lmagan til nofaol turadi */}
+                {available.length > 0 && (
+                <div className={"flex items-center gap-1 px-3 md:px-4 pt-3 border-b border-[#EEF2FA] overflow-x-auto"}>
+                  <GlobeIcon className={"w-5 h-5 mr-1 shrink-0 text-[#8A95B0]"} />
+                  {DOC_LANGS.map((l) => {
+                    const exists = available.includes(l.id);
+                    const active = content && docLang === l.id;
+                    return (
+                      <button
+                        key={l.id}
+                        type={"button"}
+                        disabled={!exists || active}
+                        onClick={() => switchLang(l.id)}
+                        title={exists ? l.label : "Bu tilda hali mavjud emas"}
+                        className={clsx(
+                          "relative shrink-0 h-[42px] px-4 text-[14px] font-semibold transition-colors",
+                          active
+                            ? "text-[#1D5BE8] after:absolute after:left-2 after:right-2 after:-bottom-px after:h-[3px] after:rounded-full after:bg-[#1D5BE8]"
+                            : exists
+                            ? "text-[#1E2B5A] hover:text-[#1D5BE8]"
+                            : "text-[#C3CAD9] cursor-not-allowed"
+                        )}
+                      >
+                        {l.label}
+                        {!exists && <span className={"ml-1.5 text-[11px] font-medium"}>— yo&apos;q</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+                )}
                 <div className={"flex flex-wrap items-center gap-3 px-4 md:px-5 py-3 border-b border-[#EEF2FA]"}>
                   <div className={"flex items-center gap-2 text-[13px] text-[#5B6788]"}>
                     Matn o&apos;lchami:
@@ -569,24 +645,6 @@ const Index = () => {
                       </button>
                     </div>
                   </div>
-
-                  {hasBothLangs && (
-                    <div className={"flex items-center rounded-[10px] bg-[#F1F4FA] p-0.5"}>
-                      {data.languages.map((lang) => (
-                        <button
-                          key={lang}
-                          type={"button"}
-                          onClick={() => switchLang(lang)}
-                          className={clsx(
-                            "h-7 px-3 rounded-[8px] text-[12px] font-semibold uppercase",
-                            docLang === lang ? "bg-white text-[#1D5BE8] shadow-sm" : "text-[#5B6788]"
-                          )}
-                        >
-                          {lang}
-                        </button>
-                      ))}
-                    </div>
-                  )}
 
                   {editionsInLang.length > 1 && (
                     <div className={"relative"}>
