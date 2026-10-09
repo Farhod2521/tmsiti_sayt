@@ -229,3 +229,6 @@ input[type='file']{
   .lex-doc .lex-p.banner { margin-left: 0; }
   .lex-doc .lex-p.indent { text-indent: 1.2em; }
 }
+/* Bizda yo'q hujjatga havola — lex.uz da ochiladi */
+.lex-doc a.lex-ext::after { content: "↗"; font-size: .75em; margin-left: .15em; vertical-align: super; opacity: .7; }
+.lex-doc a[data-doc] { text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }

@@ -405,6 +405,299 @@ const UploadForm = ({ doc, client, onUploaded }) => {
 // ===================================================================
 //   DASHBOARD
 // ===================================================================
+// ===================================================================
+//   lex.uz AVTOMATIK IMPORT
+// ===================================================================
+const COUNTERS = [
+  ["created", "Yangi yuklandi", "bg-[#E6F6EC] text-[#1E9E62]"],
+  ["updated", "Yangi tahrir", "bg-[#E8F0FE] text-[#2B5CD9]"],
+  ["replaced", "Almashtirildi", "bg-[#EEEAFD] text-[#7C5CE0]"],
+  ["ok", "Tekshirildi", "bg-[#F1F4FA] text-[#5B6788]"],
+  ["stub", "PDF qoldi", "bg-[#FFF6DB] text-[#B78100]"],
+  ["mismatch", "Shifr mos emas", "bg-[#FFEEE4] text-[#F0692A]"],
+  ["error", "Xato", "bg-[#FDECEC] text-[#E5484D]"],
+  ["laws", "Qonunlar", "bg-[#E8F0FE] text-[#1D5BE8]"],
+];
+
+const JOB_STATUS_CLS = {
+  queued: "bg-[#F1F4FA] text-[#5B6788]",
+  running: "bg-[#E8F0FE] text-[#1D5BE8]",
+  done: "bg-[#E6F6EC] text-[#1E9E62]",
+  stopped: "bg-[#FFF6DB] text-[#B78100]",
+  failed: "bg-[#FDECEC] text-[#E5484D]",
+};
+
+const SCOPES = [
+  { id: "all", label: "Hammasi", hint: "barcha SHNQ tekshiriladi" },
+  { id: "missing", label: "Matni yo'qlar", hint: "faqat hali matni yuklanmaganlar" },
+  { id: "failed", label: "Xatolarni qayta", hint: "oldin xato bergan hujjatlar" },
+];
+
+const duration = (from, to) => {
+  if (!from) return "";
+  const sec = Math.max(0, Math.round(((to ? new Date(to) : new Date()) - new Date(from)) / 1000));
+  const m = Math.floor(sec / 60);
+  return m ? `${m} daq ${sec % 60} s` : `${sec} s`;
+};
+
+const LexSyncPanel = ({ client, onOpenDoc }) => {
+  const [state, setState] = useState(null);
+  const [scope, setScope] = useState("all");
+  const [laws, setLaws] = useState(true);
+  const [replace, setReplace] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const logRef = useRef(null);
+
+  const load = useCallback(() => {
+    client
+      .get("shnq-admin/lex-sync/")
+      .then(({ data }) => setState(data))
+      .catch((err) => toast.error(errorText(err)));
+  }, [client]);
+
+  const running = !!state?.running;
+  useEffect(() => {
+    load();
+    const timer = setInterval(load, running ? 2000 : 15000);
+    return () => clearInterval(timer);
+  }, [load, running]);
+
+  const job = state?.job;
+  const logLength = job?.log?.length || 0;
+  useEffect(() => {
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
+  }, [logLength]);
+
+  const start = async () => {
+    if (replace && !window.confirm("Mavjud matnlar o'chirilib, lex.uz dan qaytadan yuklanadi. Davom etasizmi?")) return;
+    setBusy(true);
+    try {
+      await client.post("shnq-admin/lex-sync/start/", { scope, laws, mode: replace ? "replace" : "update" });
+      toast.success("Import boshlandi");
+      load();
+    } catch (err) {
+      toast.error(errorText(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const stop = async () => {
+    setBusy(true);
+    try {
+      await client.post("shnq-admin/lex-sync/stop/");
+      toast("Joriy hujjatdan keyin to'xtaydi", { icon: "⏸" });
+      load();
+    } catch (err) {
+      toast.error(errorText(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const summary = state?.summary || {};
+  const statuses = summary.statuses || {};
+  const percent = job && job.total ? Math.round((job.done / job.total) * 100) : 0;
+
+  return (
+    <div className={"space-y-5"}>
+      <div className={"grid grid-cols-2 lg:grid-cols-5 gap-3"}>
+        {[
+          ["lex.uz havolasi bor", summary.with_lex_link, "text-[#0B1A4F]"],
+          ["Matni yuklangan", statuses.ok, "text-[#1E9E62]"],
+          ["PDF qolgan (zip/matnsiz)", statuses.stub, "text-[#B78100]"],
+          ["Shifr mos emas / xato", (statuses.mismatch || 0) + (statuses.error || 0), "text-[#E5484D]"],
+          ["Qonunlar", summary.laws, "text-[#1D5BE8]"],
+        ].map(([label, value, cls]) => (
+          <div key={label} className={clsx(card, "p-4")}>
+            <p className={clsx("text-[22px] font-bold leading-tight", cls)}>{value == null ? "—" : value}</p>
+            <p className={"text-[12.5px] text-[#5B6788]"}>{label}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className={"grid gap-5 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] items-start"}>
+        {/* Sozlamalar */}
+        <div className={clsx(card, "p-5")}>
+          <div className={"flex items-center gap-3 text-[16px] font-bold"}>
+            <RefreshUpIcon className={"w-6 h-6 text-[#1D5BE8]"} /> lex.uz dan avtomatik yuklash
+          </div>
+          <ul className={"mt-3 space-y-1.5 text-[13px] leading-[1.5] text-[#5B6788] list-disc pl-5"}>
+            <li>Har bir SHNQ ning lex.uz havolasidan <b>o&apos;zbek (lotin, kirill) va rus</b> matnlari yuklanadi.</li>
+            <li>lex.uz dagi hujjat <b>shifri mos kelmasa</b> — yuklanmaydi, pastdagi ro&apos;yxatga tushadi.</li>
+            <li>Matn o&apos;rniga <b>zip/pdf</b> biriktirilgan hujjatlarda PDF qoladi.</li>
+            <li>Matn o&apos;zgargan bo&apos;lsa — yangi tahrir qo&apos;shiladi («Oldingi tahrirga qarang»); adashib yuklangan matn almashtiriladi.</li>
+            <li>Matnlarda havola qilingan qonun va kodekslar «Qonunlar» bo&apos;limiga yuklanadi — havolalar sayt ichida ochiladi.</li>
+          </ul>
+
+          <p className={"mt-5 text-[13px] font-semibold"}>Qaysi hujjatlar</p>
+          <div className={"mt-2 grid grid-cols-3 gap-2"}>
+            {SCOPES.map((s) => (
+              <button
+                key={s.id}
+                type={"button"}
+                disabled={running}
+                onClick={() => setScope(s.id)}
+                title={s.hint}
+                className={clsx(
+                  "rounded-[12px] border-2 px-2 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60",
+                  scope === s.id ? "border-[#1D5BE8] bg-[#EEF4FF] text-[#1D5BE8]" : "border-[#E3E9F5] hover:border-[#B8C6E6]"
+                )}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+
+          <label className={"mt-4 flex items-start gap-3 cursor-pointer"}>
+            <input type={"checkbox"} className={"mt-1"} checked={laws} disabled={running} onChange={(e) => setLaws(e.target.checked)} />
+            <span className={"text-[13.5px]"}>
+              Havola qilingan qonunlarni ham yuklash
+              <span className={"block text-[12px] text-[#8A95B0]"}>Kodeks, qonun, qarorlar — «Qonunlar» bo&apos;limi</span>
+            </span>
+          </label>
+          <label className={"mt-3 flex items-start gap-3 cursor-pointer"}>
+            <input type={"checkbox"} className={"mt-1"} checked={replace} disabled={running} onChange={(e) => setReplace(e.target.checked)} />
+            <span className={"text-[13.5px] text-[#E5484D]"}>
+              Mavjud matnlarni o&apos;chirib, qaytadan yuklash
+              <span className={"block text-[12px] text-[#8A95B0]"}>Tahrirlar tarixi ham qaytadan boshlanadi</span>
+            </span>
+          </label>
+
+          {running ? (
+            <button
+              type={"button"}
+              onClick={stop}
+              disabled={busy || job?.stop_requested}
+              className={"mt-5 w-full h-[46px] rounded-[12px] bg-[#FDECEC] text-[#E5484D] text-[15px] font-semibold hover:bg-[#FBDADA] disabled:opacity-60"}
+            >
+              {job?.stop_requested ? "To'xtatilmoqda..." : "To'xtatish"}
+            </button>
+          ) : (
+            <button
+              type={"button"}
+              onClick={start}
+              disabled={busy || !state}
+              className={"mt-5 w-full h-[46px] rounded-[12px] bg-[#1D5BE8] text-white text-[15px] font-semibold flex items-center justify-center gap-2 hover:bg-[#174FD0] disabled:opacity-60"}
+            >
+              <RefreshUpIcon className={"w-5 h-5"} /> Boshlash
+            </button>
+          )}
+          <p className={"mt-3 text-[12px] text-[#8A95B0]"}>
+            lex.uz ni ortiqcha yuklamaslik uchun so&apos;rovlar orasida pauza bor: 150 ta hujjat ~30–60 daqiqa.
+            Sahifani yopsangiz ham jarayon serverda davom etadi.
+          </p>
+        </div>
+
+        {/* Jarayon */}
+        <div className={clsx(card, "p-5 min-w-0")}>
+          {!job ? (
+            <div className={"py-16 text-center text-[#5B6788]"}>
+              <HistoryIcon className={"w-12 h-12 mx-auto text-[#B8C6E6]"} />
+              <p className={"mt-4 text-[15px] font-semibold text-[#0B1A4F]"}>Hali import qilinmagan</p>
+              <p className={"mt-1 text-[13px]"}>«Boshlash» tugmasini bosing — jarayon shu yerda ko&apos;rinadi</p>
+            </div>
+          ) : (
+            <>
+              <div className={"flex flex-wrap items-center gap-3"}>
+                <span className={"text-[16px] font-bold"}>Jarayon #{job.id}</span>
+                <span className={clsx("px-2.5 py-1 rounded-md text-[12px] font-semibold", JOB_STATUS_CLS[job.status])}>
+                  {job.status_label}
+                </span>
+                <span className={"ml-auto text-[12.5px] text-[#8A95B0]"}>
+                  {duration(job.started_at || job.created_at, job.finished_at)}
+                </span>
+              </div>
+
+              <div className={"mt-4 h-3 rounded-full bg-[#EEF2FA] overflow-hidden"}>
+                <div
+                  className={clsx("h-full rounded-full transition-all duration-500", job.status === "failed" ? "bg-[#E5484D]" : "bg-[#1D5BE8]")}
+                  style={{ width: `${job.status === "done" ? 100 : percent}%` }}
+                />
+              </div>
+              <div className={"mt-2 flex items-center justify-between gap-3 text-[13px]"}>
+                <span className={"truncate text-[#1E2B5A]"}>{running ? job.current || "Tayyorlanmoqda..." : " "}</span>
+                <span className={"shrink-0 font-semibold"}>
+                  {job.done} / {job.total || "?"} · {job.status === "done" ? 100 : percent}%
+                </span>
+              </div>
+
+              <div className={"mt-4 flex flex-wrap gap-2"}>
+                {COUNTERS.filter(([key]) => job.counters?.[key]).map(([key, label, cls]) => (
+                  <span key={key} className={clsx("px-2.5 py-1 rounded-md text-[12.5px] font-medium", cls)}>
+                    {label}: <b>{job.counters[key]}</b>
+                  </span>
+                ))}
+              </div>
+
+              <div
+                ref={logRef}
+                className={"mt-4 h-[340px] overflow-y-auto rounded-[12px] bg-[#0F172A] text-[#CBD5E1] p-3 font-mono text-[12px] leading-[1.6]"}
+              >
+                {(job.log || []).map((line, i) => (
+                  <div
+                    key={i}
+                    className={clsx(
+                      "whitespace-pre-wrap break-words",
+                      line.includes("✗") && "text-[#FCA5A5]",
+                      line.includes("✓") && "text-[#86EFAC]",
+                      line.includes("○") && "text-[#FDE68A]",
+                      line.includes("▶") && "text-white"
+                    )}
+                  >
+                    {line}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Muammoli hujjatlar */}
+      {state?.problems?.length > 0 && (
+        <div className={clsx(card, "p-5")}>
+          <div className={"flex items-center gap-3 text-[16px] font-bold"}>
+            <FileTextIcon className={"w-6 h-6 text-[#F0692A]"} /> Tekshirish kerak
+            <span className={"px-2 py-0.5 rounded-md bg-[#FFEEE4] text-[12px] font-medium text-[#F0692A]"}>{state.problems.length}</span>
+          </div>
+          <p className={"mt-1 text-[13px] text-[#5B6788]"}>
+            «Shifr mos emas» — SHNQ dagi lex.uz havolasi boshqa hujjatga olib boradi: havolani to&apos;g&apos;rilang yoki matnni qo&apos;lda yuklang.
+          </p>
+          <ul className={"mt-4 divide-y divide-[#EEF2FA]"}>
+            {state.problems.map((p) => (
+              <li key={p.shnk_id} className={"py-3 flex flex-col md:flex-row md:items-center gap-2 md:gap-4"}>
+                <div className={"md:w-[180px] shrink-0"}>
+                  <p className={"text-[13px] font-bold"}>{p.designation}</p>
+                  <span
+                    className={clsx(
+                      "inline-block mt-1 px-2 py-0.5 rounded text-[11px] font-semibold",
+                      p.status === "stub" ? "bg-[#FFF6DB] text-[#B78100]" : p.status === "mismatch" ? "bg-[#FFEEE4] text-[#F0692A]" : "bg-[#FDECEC] text-[#E5484D]"
+                    )}
+                  >
+                    {p.status_label}
+                  </span>
+                </div>
+                <p className={"flex-1 min-w-0 text-[13px] text-[#1E2B5A] break-words"}>{p.message}</p>
+                <div className={"flex gap-2 shrink-0"}>
+                  {p.url && (
+                    <a href={p.url} target={"_blank"} rel={"noopener noreferrer"} className={"h-9 px-3 rounded-[10px] border border-[#DCE3F0] text-[#1D5BE8] text-[13px] font-medium flex items-center gap-1.5 hover:bg-[#F5F8FF]"}>
+                      <ExternalLinkIcon className={"w-4 h-4"} /> lex.uz
+                    </a>
+                  )}
+                  <button type={"button"} onClick={() => onOpenDoc(p.shnk_id)} className={"h-9 px-3 rounded-[10px] bg-[#EEF4FF] text-[#1D5BE8] text-[13px] font-medium hover:bg-[#DCE7FF]"}>
+                    Hujjatni ochish
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const FILTERS = [
   { id: "", label: "Barchasi" },
   { id: "1", label: "Matni bor" },
@@ -436,10 +729,29 @@ const Dashboard = ({ token, onLogout }) => {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState(null);
 
-  // /admin?doc=12 — hujjatni to'g'ridan-to'g'ri ochish
+  const [tab, setTab] = useState("docs");
+
+  // /admin?doc=12 — hujjatni to'g'ridan-to'g'ri ochish; /admin?tab=lex — lex.uz import bo'limi
   useEffect(() => {
-    if (router.isReady && router.query.doc) setSelectedId(Number(router.query.doc) || null);
-  }, [router.isReady, router.query.doc]);
+    if (!router.isReady) return;
+    if (router.query.doc) setSelectedId(Number(router.query.doc) || null);
+    if (router.query.tab === "lex") setTab("lex");
+  }, [router.isReady, router.query.doc, router.query.tab]);
+
+  const openDoc = (id) => {
+    setSelectedId(id);
+    setTab("docs");
+  };
+
+  const syncDocFromLex = async () => {
+    try {
+      await client.post("shnq-admin/lex-sync/start/", { shnk_ids: [doc.id], laws: false });
+      toast.success("lex.uz dan yuklash boshlandi");
+      setTab("lex");
+    } catch (err) {
+      toast.error(errorText(err));
+    }
+  };
   const [doc, setDoc] = useState(null);
   const [docLoading, setDocLoading] = useState(false);
 
@@ -517,6 +829,29 @@ const Dashboard = ({ token, onLogout }) => {
       </header>
 
       <main className={"max-w-[1536px] mx-auto px-4 lg:px-8 py-6"}>
+        <div className={"mb-5 inline-flex rounded-[14px] bg-white border border-[#EEF2FA] p-1 shadow-[0_8px_30px_rgba(16,42,116,0.06)]"}>
+          {[
+            ["docs", "Hujjatlar", FileTextIcon],
+            ["lex", "lex.uz import", RefreshUpIcon],
+          ].map(([id, label, Icon]) => (
+            <button
+              key={id}
+              type={"button"}
+              onClick={() => setTab(id)}
+              className={clsx(
+                "h-10 px-4 rounded-[10px] flex items-center gap-2 text-[14px] font-semibold transition-colors",
+                tab === id ? "bg-[#1D5BE8] text-white" : "text-[#5B6788] hover:bg-[#F1F4FA]"
+              )}
+            >
+              <Icon className={"w-5 h-5"} /> {label}
+            </button>
+          ))}
+        </div>
+
+        {tab === "lex" && <LexSyncPanel client={client} onOpenDoc={openDoc} />}
+
+        {tab === "docs" && (
+        <>
         <div className={"grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4"}>
           {stats.map(({ label, value, cls, Icon }) => (
             <div key={label} className={clsx(card, "flex items-center gap-4 p-4")}>
@@ -630,6 +965,29 @@ const Dashboard = ({ token, onLogout }) => {
                       )}
                     </div>
                   </div>
+                  {doc.url && doc.url.includes("lex.uz") && (
+                    <div className={"mt-4 rounded-[12px] bg-[#F7F9FD] border border-[#EEF2FA] px-4 py-3 flex flex-col md:flex-row md:items-center gap-3"}>
+                      <div className={"flex-1 min-w-0 text-[13px]"}>
+                        <span className={"font-semibold"}>lex.uz: </span>
+                        {doc.lex ? (
+                          <>
+                            <span className={"font-semibold text-[#1D5BE8]"}>{doc.lex.status_label}</span>
+                            {doc.lex.message && <span className={"text-[#5B6788]"}> — {doc.lex.message}</span>}
+                            {doc.lex.synced_at && (
+                              <span className={"block text-[12px] text-[#8A95B0]"}>
+                                Oxirgi tekshiruv: {formatDate(doc.lex.synced_at)}
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <span className={"text-[#5B6788]"}>hali avtomatik yuklanmagan</span>
+                        )}
+                      </div>
+                      <button type={"button"} onClick={syncDocFromLex} className={"h-9 px-4 rounded-[10px] bg-[#1D5BE8] text-white text-[13px] font-semibold flex items-center gap-2 hover:bg-[#174FD0] shrink-0"}>
+                        <RefreshUpIcon className={"w-4 h-4"} /> lex.uz dan yuklash
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className={clsx(card, "p-5")}>
@@ -665,6 +1023,8 @@ const Dashboard = ({ token, onLogout }) => {
             )}
           </div>
         </div>
+        </>
+        )}
       </main>
     </div>
   );

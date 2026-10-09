@@ -86,6 +86,11 @@ export const menuData = [
         title: "reference",
         url: "/reference",
       },
+      {
+        id: 8,
+        title: "laws_section",
+        url: "/qonunlar",
+      },
 
       // {
       //   id: 8,
