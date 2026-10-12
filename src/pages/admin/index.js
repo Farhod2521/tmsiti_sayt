@@ -6,7 +6,9 @@ import clsx from "clsx";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { config } from "@/config";
+import AnalyticsDashboard from "@/components/analytics/dashboard";
 import {
+  ChartBoxIcon,
   CheckIcon,
   CloseIcon,
   DatabaseIcon,
@@ -729,13 +731,13 @@ const Dashboard = ({ token, onLogout }) => {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState(null);
 
-  const [tab, setTab] = useState("docs");
+  const [tab, setTab] = useState("stats");
 
   // /admin?doc=12 — hujjatni to'g'ridan-to'g'ri ochish; /admin?tab=lex — lex.uz import bo'limi
   useEffect(() => {
     if (!router.isReady) return;
     if (router.query.doc) setSelectedId(Number(router.query.doc) || null);
-    if (router.query.tab === "lex") setTab("lex");
+    if (["stats", "docs", "lex"].includes(router.query.tab)) setTab(router.query.tab);
   }, [router.isReady, router.query.doc, router.query.tab]);
 
   const openDoc = (id) => {
@@ -817,7 +819,7 @@ const Dashboard = ({ token, onLogout }) => {
           </div>
           <div className={"flex-1"}>
             <p className={"text-[16px] font-extrabold leading-tight"}>TMSITI · Admin panel</p>
-            <p className={"text-[12px] text-[#5B6788]"}>SHNQ hujjatlari va tahrirlari</p>
+            <p className={"text-[12px] text-[#5B6788]"}>Statistika, SHNQ hujjatlari va lex.uz import</p>
           </div>
           <Link href={"/shnq"} target={"_blank"} className={"hidden sm:flex h-10 px-4 rounded-[12px] items-center gap-2 text-[14px] font-medium text-[#1D5BE8] hover:bg-[#EEF4FF]"}>
             <ExternalLinkIcon className={"w-4 h-4"} /> Saytda ko&apos;rish
@@ -831,6 +833,7 @@ const Dashboard = ({ token, onLogout }) => {
       <main className={"max-w-[1536px] mx-auto px-4 lg:px-8 py-6"}>
         <div className={"mb-5 inline-flex rounded-[14px] bg-white border border-[#EEF2FA] p-1 shadow-[0_8px_30px_rgba(16,42,116,0.06)]"}>
           {[
+            ["stats", "Statistika", ChartBoxIcon],
             ["docs", "Hujjatlar", FileTextIcon],
             ["lex", "lex.uz import", RefreshUpIcon],
           ].map(([id, label, Icon]) => (
@@ -847,6 +850,8 @@ const Dashboard = ({ token, onLogout }) => {
             </button>
           ))}
         </div>
+
+        {tab === "stats" && <AnalyticsDashboard client={client} />}
 
         {tab === "lex" && <LexSyncPanel client={client} onOpenDoc={openDoc} />}
 
