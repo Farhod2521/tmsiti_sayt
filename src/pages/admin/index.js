@@ -1036,9 +1036,21 @@ const Dashboard = ({ token, onLogout }) => {
 };
 
 // ===================================================================
+// Admin panel faqat ruxsat etilgan IP manzildan ochiladi (backend: SHNQ_ADMIN_ALLOWED_IPS).
+// Boshqa IP uchun sahifa umuman yo'qdek ko'rinadi.
+const NotFoundScreen = () => (
+  <div className={"min-h-screen font-jakarta bg-white flex flex-col items-center justify-center p-6 text-center"}>
+    <p className={"text-[72px] font-extrabold leading-none text-[#0B1A4F]"}>404</p>
+    <p className={"mt-3 text-[16px] text-[#5B6788]"}>Sahifa topilmadi</p>
+    <Link href={"/"} className={"mt-6 text-[14px] font-medium text-[#1D5BE8] hover:underline"}>
+      Bosh sahifaga qaytish
+    </Link>
+  </div>
+);
+
 const AdminPage = () => {
   const [token, setToken] = useState(null);
-  const [ready, setReady] = useState(false);
+  const [access, setAccess] = useState("checking"); // checking | ok | denied
 
   useEffect(() => {
     try {
@@ -1046,7 +1058,10 @@ const AdminPage = () => {
     } catch (e) {
       setToken(null);
     }
-    setReady(true);
+    axios
+      .get(`${API}shnq-admin/access/`)
+      .then(() => setAccess("ok"))
+      .catch(() => setAccess("denied"));
   }, []);
 
   const login = (value) => {
@@ -1070,10 +1085,16 @@ const AdminPage = () => {
   return (
     <>
       <Head>
-        <title>Admin panel — TMSITI</title>
+        <title>{access === "denied" ? "404 — Sahifa topilmadi" : "Admin panel — TMSITI"}</title>
         <meta name={"robots"} content={"noindex, nofollow"} />
       </Head>
-      {!ready ? null : token ? <Dashboard token={token} onLogout={logout} /> : <LoginScreen onLogin={login} />}
+      {access === "checking" ? null : access === "denied" ? (
+        <NotFoundScreen />
+      ) : token ? (
+        <Dashboard token={token} onLogout={logout} />
+      ) : (
+        <LoginScreen onLogin={login} />
+      )}
     </>
   );
 };
