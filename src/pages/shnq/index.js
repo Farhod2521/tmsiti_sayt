@@ -608,11 +608,25 @@ const Index = () => {
 
   const renderDocument = (doc, key) => {
     const { label, number } = splitDesignation(doc.designation);
+    // Shifr va nom bosilganda ham hujjat ochiladi ("Ko'rish" tugmasi kabi)
+    const canOpen = !isViewDisabled(doc);
+    const openProps = canOpen
+      ? {
+          role: "link",
+          tabIndex: 0,
+          onClick: () => handleView(doc),
+          onKeyDown: (e) => e.key === "Enter" && handleView(doc),
+        }
+      : {};
+    const openClass = canOpen &&
+      "cursor-pointer hover:text-[#1D5BE8] hover:underline underline-offset-2 transition-colors";
     const code = (
       <div
-        className={
-          "text-[13px] leading-[1.35] font-semibold text-[#0B1A4F] break-words"
-        }
+        className={clsx(
+          "text-[13px] leading-[1.35] font-semibold text-[#0B1A4F] break-words",
+          openClass
+        )}
+        {...openProps}
       >
         {label && <p>{label}</p>}
         <p>{displayText(number, lang)}</p>
@@ -640,7 +654,10 @@ const Index = () => {
             {icon}
             {code}
           </div>
-          <p className={"mt-3 text-[14px] leading-[1.45] text-[#1E2B5A]"}>
+          <p
+            className={clsx("mt-3 text-[14px] leading-[1.45] text-[#1E2B5A]", openClass)}
+            {...openProps}
+          >
             {displayText(doc.name_uz, lang)}
           </p>
           {renderTags(doc)}
@@ -663,7 +680,10 @@ const Index = () => {
           {code}
         </div>
         <div className={"flex-1 min-w-0"}>
-          <p className={"text-[14px] leading-[1.45] text-[#1E2B5A]"}>
+          <p
+            className={clsx("text-[14px] leading-[1.45] text-[#1E2B5A]", openClass)}
+            {...openProps}
+          >
             {displayText(doc.name_uz, lang)}
           </p>
           {renderTags(doc)}
