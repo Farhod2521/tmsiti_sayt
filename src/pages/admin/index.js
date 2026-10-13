@@ -700,6 +700,9 @@ const LexSyncPanel = ({ client, onOpenDoc }) => {
   );
 };
 
+// Admin panelda ko'rinadigan bo'limlar. "docs" (Hujjatlar) va "lex" (lex.uz import) hozircha yashirilgan.
+const VISIBLE_TABS = ["stats"]; // ["stats", "docs", "lex"]
+
 const FILTERS = [
   { id: "", label: "Barchasi" },
   { id: "1", label: "Matni bor" },
@@ -737,7 +740,7 @@ const Dashboard = ({ token, onLogout }) => {
   useEffect(() => {
     if (!router.isReady) return;
     if (router.query.doc) setSelectedId(Number(router.query.doc) || null);
-    if (["stats", "docs", "lex"].includes(router.query.tab)) setTab(router.query.tab);
+    if (VISIBLE_TABS.includes(router.query.tab)) setTab(router.query.tab);
   }, [router.isReady, router.query.doc, router.query.tab]);
 
   const openDoc = (id) => {
@@ -834,8 +837,9 @@ const Dashboard = ({ token, onLogout }) => {
         <div className={"mb-5 inline-flex rounded-[14px] bg-white border border-[#EEF2FA] p-1 shadow-[0_8px_30px_rgba(16,42,116,0.06)]"}>
           {[
             ["stats", "Statistika", ChartBoxIcon],
-            ["docs", "Hujjatlar", FileTextIcon],
-            ["lex", "lex.uz import", RefreshUpIcon],
+            // Hozircha yashirilgan — qaytarish uchun izohni olib tashlang va yuqoridagi VISIBLE_TABS ga ham qo'shing
+            // ["docs", "Hujjatlar", FileTextIcon],
+            // ["lex", "lex.uz import", RefreshUpIcon],
           ].map(([id, label, Icon]) => (
             <button
               key={id}
@@ -853,9 +857,9 @@ const Dashboard = ({ token, onLogout }) => {
 
         {tab === "stats" && <AnalyticsDashboard client={client} />}
 
-        {tab === "lex" && <LexSyncPanel client={client} onOpenDoc={openDoc} />}
+        {VISIBLE_TABS.includes("lex") && tab === "lex" && <LexSyncPanel client={client} onOpenDoc={openDoc} />}
 
-        {tab === "docs" && (
+        {VISIBLE_TABS.includes("docs") && tab === "docs" && (
         <>
         <div className={"grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4"}>
           {stats.map(({ label, value, cls, Icon }) => (

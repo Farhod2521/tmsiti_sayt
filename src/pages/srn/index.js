@@ -1,567 +1,490 @@
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import { useRouter } from "next/router";
+import clsx from "clsx";
+import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 import Main from "@/layouts/main";
 import Menu from "@/components/menu";
-import { useEffect, useState, useRef } from "react";
+import DocsHero from "@/components/docs-hero";
+import RowMenu from "@/components/row-menu";
 import ContentLoader from "@/components/loader/content-loader";
-import Image from "next/image";
-import { useRouter } from "next/router";
-import { useTranslation } from "react-i18next";
+import { config } from "@/config";
+import { displayCode, displayText, searchNorm } from "@/utils/translit";
+import {
+  ChevronDownIcon,
+  CopyIcon,
+  DownloadIcon,
+  ExternalLinkIcon,
+  FileSearchIcon,
+  FileTextIcon,
+  GlobeIcon,
+  HistoryIcon,
+  LayersIcon,
+  PlusIcon,
+  SearchIcon,
+} from "@/components/icons/docs";
 
-// Fragment ni alohida import qilish
-import { Fragment } from "react";
+// Smeta-resurs normalari (SRN) va 4-quyi tizim ma'lumotnomalari.
+// Ma'lumot: shnk.tmsiti.uz/sren (SRN + almashtirilgan eski ShNQ lar) va /subsystems/ (4-quyi tizim).
+// API da hujjat holati va sanasi yo'q — shuning uchun ular ko'rsatilmaydi.
+const PdfViewerModal = dynamic(() => import("@/components/pdf-viewer"), { ssr: false });
+
+const SHNK_API = config.BASE_SHNK_URL;
+const VMQ_URL = "https://lex.uz/docs/6230882#6231369";
+const card = "bg-white rounded-[18px] border border-[#EEF2FA] shadow-[0_8px_30px_rgba(16,42,116,0.06)]";
+
+const isAddendum = (d) => /^qo.shimcha/i.test(d.trim());
+const isGeneral = (d) => /\b4\.(01\.\d+|02\.00)\b/.test(d);
+const numberOnly = (d = "") => d.replace(/[SRNСРНShNQШНҚ\s]/gi, "").trim();
+
+const SRN_CATEGORIES = [
+  ["all", "Barcha kategoriyalar"],
+  ["general", "Umumiy nizom va qoidalar"],
+  ["works", "Ish turlari bo'yicha"],
+  ["addenda", "Qo'shimcha va o'zgartirishlar"],
+];
+
+const PdfButton = ({ onClick, disabled }) => (
+  <button
+    type={"button"}
+    onClick={onClick}
+    disabled={disabled}
+    title={disabled ? "PDF mavjud emas" : "Sayt ichida ko'rish"}
+    className={clsx(
+      "inline-flex flex-col items-center justify-center w-12 h-12 rounded-[12px] text-[10.5px] font-semibold transition-colors",
+      disabled ? "bg-[#F5F6F9] text-[#C3CAD9] cursor-not-allowed" : "bg-[#FDF0F0] text-[#D93B3B] hover:bg-[#FBDADA]"
+    )}
+  >
+    <FileTextIcon className={"w-5 h-5"} />
+    PDF
+  </button>
+);
+
+const DownloadButton = ({ file }) =>
+  file ? (
+    <a
+      href={`/pdf/${file}`}
+      download
+      title={"Yuklab olish"}
+      className={"inline-flex w-10 h-10 items-center justify-center rounded-full bg-[#EEF4FF] text-[#1D5BE8] hover:bg-[#DCE7FF] transition-colors"}
+    >
+      <DownloadIcon className={"w-5 h-5"} />
+    </a>
+  ) : (
+    <span className={"inline-flex w-10 h-10 items-center justify-center rounded-full bg-[#F5F6F9] text-[#C3CAD9]"} title={"Fayl yo'q"}>
+      <DownloadIcon className={"w-5 h-5"} />
+    </span>
+  );
+
+const LangBadges = ({ uz, ru }) => (
+  <div className={"flex gap-1.5"}>
+    {[["UZ", uz], ["RU", ru]].map(([label, has]) => (
+      <span
+        key={label}
+        title={has ? `${label} tilida PDF bor` : `${label} tilida PDF yo'q`}
+        className={clsx("px-2 py-[3px] rounded-md text-[12px] font-semibold", has ? "bg-[#EEF4FF] text-[#1D5BE8]" : "bg-[#F5F6F9] text-[#C3CAD9] line-through")}
+      >
+        {label}
+      </span>
+    ))}
+  </div>
+);
 
 const Index = () => {
-  const [data, setData] = useState([]);
-  const [displayedData, setDisplayedData] = useState([]);
-  const [groupsData, setGroupsData] = useState([]);
-  const [error, setError] = useState(null);
-  const [groupsError, setGroupsError] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [groupsLoading, setGroupsLoading] = useState(true);
-  const [showAll, setShowAll] = useState(false);
   const router = useRouter();
-  const { highlight } = router.query;
-  const highlightedRowRef = useRef(null);
   const { t, i18n } = useTranslation();
+  const lang = i18n.language;
+  const isRu = lang === "ru";
+  const highlight = router.query.highlight ? String(router.query.highlight) : null;
 
-  const currentLanguage = i18n.language;
+  const [srn, setSrn] = useState(null);
+  const [groups, setGroups] = useState(null);
+  const [error, setError] = useState(null);
+  const [tab, setTab] = useState("srn"); // srn | replaced | addenda (SRN jadvali uchun)
+  const [refGroup, setRefGroup] = useState("all");
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("all");
+  const [pdfLang, setPdfLang] = useState("all");
+  const [viewing, setViewing] = useState(null);
+  const highlightRef = useRef(null);
+  const refsRef = useRef(null);
 
-  // Birinchi API - SRN ma'lumotlari
   useEffect(() => {
-    fetch("https://shnk.tmsiti.uz/sren")
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Ma'lumotlarni yuklab bo'lmadi");
-        }
-        return response.json();
-      })
-      .then((result) => {
-        setData(result);
-        
-        // Boshlang'ich holatda faqat 5 ta elementni ko'rsatish
-        setDisplayedData(result.slice(0, 5));
-        
-        if (highlight) {
-          setTimeout(() => {
-            router.replace('/srn', undefined, { shallow: true });
-          }, 3000);
-        }
-      })
-      .catch((err) => {
-        setError(err.message);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [highlight, router]);
-
-  // Ikkinchi API - 4-quyi tizim ma'lumotlari (shnk.tmsiti.uz/subsystems/)
-  useEffect(() => {
-    fetch("https://shnk.tmsiti.uz/subsystems/")
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Subsystems ma'lumotlarini yuklab bo'lmadi");
-        }
-        return response.json();
-      })
-      .then((result) => {
-        // Faqat "4-қуйи тизим" bilan boshlanuvchi subsystemni topamiz
-        const subsystem4 = result.find((s) =>
-          s.title && s.title.startsWith("4-қуйи тизим")
-        );
-        setGroupsData(subsystem4 ? subsystem4.groups : []);
-      })
-      .catch((err) => {
-        setGroupsError(err.message);
-      })
-      .finally(() => {
-        setGroupsLoading(false);
-      });
+    fetch(`${SHNK_API}sren`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then(setSrn)
+      .catch(() => setError("Ma'lumotlarni yuklab bo'lmadi"));
+    fetch(`${SHNK_API}subsystems/`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((all) => setGroups((all.find((s) => s.title?.startsWith("4-қуйи тизим")) || {}).groups || []))
+      .catch(() => setGroups([]));
   }, []);
 
-  // showAll o'zgarganda displayedData ni yangilash
+  // SHNQ ro'yxatidan "?highlight=4.02.01" bilan kelinganda — qatorni ko'rsatish
   useEffect(() => {
-    if (showAll) {
-      setDisplayedData(data);
-    } else {
-      setDisplayedData(data.slice(0, 5));
-    }
-  }, [showAll, data]);
+    if (!highlight || !srn || !highlightRef.current) return;
+    highlightRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    const timer = setTimeout(() => router.replace("/srn", undefined, { shallow: true, scroll: false }), 4000);
+    return () => clearTimeout(timer);
+  }, [highlight, srn]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    if (highlight && highlightedRowRef.current) {
-      highlightedRowRef.current.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'center' 
-      });
-    }
-  }, [highlight, displayedData]);
+  const rows = useMemo(
+    () =>
+      (srn || []).map((item, i) => {
+        const old = (item.sren_shnk || []).map((s) => ({
+          code: s.sren_designation,
+          name: (isRu ? s.sren_shnk_ru : s.sren_shnk_uz) || s.sren_shnk_uz || s.sren_shnk_ru || "",
+          file: (isRu ? s.sren_pdf_ru || s.sren_pdf_uz : s.sren_pdf_uz || s.sren_pdf_ru) || null,
+        }));
+        return {
+          key: `${item.sren_designation}-${i}`,
+          code: item.sren_designation,
+          name: (isRu ? item.sren_name_ru : item.sren_name_uz) || item.sren_name_uz || item.sren_name_ru || "",
+          fileUz: item.sren_pdf_uz || null,
+          fileRu: item.sren_pdf_ru || null,
+          file: (isRu ? item.sren_pdf_ru || item.sren_pdf_uz : item.sren_pdf_uz || item.sren_pdf_ru) || null,
+          old,
+          addendum: isAddendum(item.sren_designation),
+          general: isGeneral(item.sren_designation),
+          highlighted:
+            !!highlight && [item.sren_designation, ...old.map((o) => o.code)].some((c) => numberOnly(c) === highlight),
+          haystack: searchNorm(
+            `${item.sren_designation} ${item.sren_name_uz} ${item.sren_name_ru} ${(item.sren_shnk || [])
+              .map((s) => `${s.sren_designation} ${s.sren_shnk_uz} ${s.sren_shnk_ru}`)
+              .join(" ")}`
+          ),
+        };
+      }),
+    [srn, isRu, highlight]
+  );
 
-  const extractNumberFromDesignation = (designation) => {
-    if (!designation) return '';
-    return designation.replace(/[SRNСРНShNQШНҚ\s]/gi, '').trim();
+  const refs = useMemo(
+    () =>
+      (groups || []).map((g) => ({
+        title: g.title,
+        docs: (g.documents || []).map((d) => ({
+          code: d.designation,
+          name: displayText((isRu ? d.name_ru : d.name_uz) || d.name_uz || d.name_ru || "", lang),
+          fileUz: d.pdf_uz || null,
+          fileRu: d.pdf_ru || null,
+          file: (isRu ? d.pdf_ru || d.pdf_uz : d.pdf_uz || d.pdf_ru) || null,
+          url: d.url,
+          haystack: searchNorm(`${d.designation} ${d.name_uz} ${d.name_ru}`),
+        })),
+      })),
+    [groups, isRu, lang]
+  );
+  const refCount = refs.reduce((s, g) => s + g.docs.length, 0);
+
+  const q = searchNorm(search);
+  const langOk = (d) => pdfLang === "all" || (pdfLang === "uz" ? d.fileUz : d.fileRu);
+
+  const visibleRows = rows.filter(
+    (r) =>
+      (tab === "srn" || (tab === "replaced" && r.old.length > 0) || (tab === "addenda" && r.addendum)) &&
+      (category === "all" ||
+        (category === "addenda" && r.addendum) ||
+        (category === "general" && r.general) ||
+        (category === "works" && !r.addendum && !r.general)) &&
+      langOk(r) &&
+      (!q || r.haystack.includes(q))
+  );
+  const visibleRefs = refs
+    .filter((g) => refGroup === "all" || g.title === refGroup)
+    .map((g) => ({ ...g, docs: g.docs.filter((d) => langOk(d) && (!q || d.haystack.includes(q))) }))
+    .filter((g) => g.docs.length > 0);
+
+  const tabs = [
+    { id: "srn", label: "Jami SRN hujjatlar", value: rows.length, Icon: LayersIcon, tone: "bg-[#E8F0FE] text-[#1D5BE8]" },
+    { id: "replaced", label: "Eski ShNQ o'rniga", value: rows.filter((r) => r.old.length).length, Icon: HistoryIcon, tone: "bg-[#E4F6EC] text-[#1E9E62]" },
+    { id: "addenda", label: "Qo'shimchalar", value: rows.filter((r) => r.addendum).length, Icon: PlusIcon, tone: "bg-[#FFF1E4] text-[#E07A1F]" },
+    { id: "refs", label: "Ma'lumotnomalar", value: refCount, Icon: FileTextIcon, tone: "bg-[#F1ECFD] text-[#7C5CE0]" },
+  ];
+
+  const switchTab = (id) => {
+    if (id === "refs") {
+      // Ma'lumotnomalar pastda — shu bo'limga o'tamiz
+      refsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    setTab(id);
   };
 
-  const getLocalizedText = (item, shnkItem = null) => {
-    if (currentLanguage === 'ru') {
-      return {
-        name: item.sren_name_ru,
-        shnkName: shnkItem ? shnkItem.sren_shnk_ru : null,
-        pdf: item.sren_pdf_ru || item.sren_pdf_uz,
-        shnkPdfUz: shnkItem ? shnkItem.sren_pdf_uz : null,
-        shnkPdfRu: shnkItem ? shnkItem.sren_pdf_ru : null
-      };
-    } else {
-      return {
-        name: item.sren_name_uz,
-        shnkName: shnkItem ? shnkItem.sren_shnk_uz : null,
-        pdf: item.sren_pdf_uz,
-        shnkPdfUz: shnkItem ? shnkItem.sren_pdf_uz : null,
-        shnkPdfRu: shnkItem ? shnkItem.sren_pdf_ru : null
-      };
-    }
+  const copyLink = (code) => {
+    navigator.clipboard?.writeText(`${window.location.origin}/srn?highlight=${encodeURIComponent(numberOnly(code))}`);
+    toast.success("Havola nusxalandi");
   };
 
-  const handleShowAll = () => {
-    setShowAll(!showAll);
-  };
+  const open = (doc) => doc.file && setViewing({ title: doc.name, designation: displayCode(doc.code, lang), file: doc.file });
 
-  // PDF mavjudligini tekshirish funksiyasi
-  const hasValidPdf = (pdfValue) => {
-    return pdfValue && pdfValue !== "" && pdfValue !== null;
-  };
-
-  // SHNK PDF ni olish funksiyasi
-  const getShnkPdfUrl = (localizedShnk, currentLang) => {
-    if (currentLang === 'ru') {
-      return hasValidPdf(localizedShnk.shnkPdfRu) ? localizedShnk.shnkPdfRu : localizedShnk.shnkPdfUz;
-    } else {
-      return localizedShnk.shnkPdfUz;
-    }
-  };
-
-  // 4-quyi tizim guruhlarini documents bilan birlashtirish
-  const flattenedData = [];
-  let globalIndex = 1;
-
-  groupsData.forEach((group, groupIndex) => {
-    if (group.documents && group.documents.length > 0) {
-      // Guruh sarlavhasini qo'shish
-      flattenedData.push({
-        type: 'group-header',
-        id: `group-${groupIndex}`,
-        title: group.title
-      });
-
-      // Documentlarni qo'shish
-      group.documents.forEach((doc, docIndex) => {
-        flattenedData.push({
-          type: 'shnk',
-          id: `doc-${groupIndex}-${docIndex}`,
-          index: globalIndex++,
-          designation: doc.designation,
-          name: currentLanguage === 'ru' ? doc.name_ru : doc.name_uz,
-          pdf_uz: doc.pdf_uz,
-          pdf_ru: doc.pdf_ru,
-          url: doc.url
-        });
-      });
-    }
-  });
-
-  if (loading || groupsLoading)
-    return (
-      <Main>
-        <ContentLoader />
-      </Main>
-    );
-
-  if (error) return <p>Xatolik: {error}</p>;
-  if (groupsError) return <p>Groups xatolik: {groupsError}</p>;
+  const th = "py-3 px-4 text-left text-[12px] font-bold uppercase tracking-[0.04em] text-[#0B1A4F] whitespace-nowrap";
 
   return (
     <Main>
       <Menu />
-      <div className="bg-[#f3f4f6] min-h-screen py-[50px]">
-        <div className="container my-[50px]">
-          {/* Smeta-Resurs Normalari jadvali */}
-          <div className="mb-8">
-            <div className="mb-8">
-              <h1 className="text-3xl text-blue-900 mb-2 text-center">Smeta-resurs normalari va maʼlumotnomalar</h1>
+      <div className={"font-jakarta bg-[#F6F9FF] text-[#0B1A4F] pb-16"}>
+        <DocsHero
+          crumbs={[{ label: t("homepage"), href: "/" }, { label: t("documents") }, { label: "Smeta-resurs normalari" }]}
+          Icon={FileTextIcon}
+          title={
+            <>
+              Smeta-resurs normalari
+              <br className={"hidden md:block"} /> va ma&apos;lumotnomalar
+            </>
+          }
+          subtitle={"Qurilish sohasida smeta-resurs normalari, resurs elementlari va ma'lumotnomalar bo'yicha hujjatlar to'plami."}
+        >
+          <p className={"mt-3 text-[15px] font-bold"}>
+            2023-yil 1-yanvardan majburiyligi bekor qilingan{" "}
+            <a href={VMQ_URL} target={"_blank"} rel={"noopener noreferrer"} className={"text-[#1D5BE8] underline underline-offset-2 hover:text-[#174FD0]"}>
+              (06.10.2022 yildagi 577-son VMQ)
+            </a>
+          </p>
+        </DocsHero>
+
+        <section className={"relative z-10 -mt-[52px] max-w-[1536px] mx-auto px-3 md:px-5 lg:px-[55px] space-y-4"}>
+          <div className={clsx(card, "p-3 md:p-4 space-y-4")}>
+            {/* Qidiruv va filtrlar */}
+            <div className={"flex flex-col lg:flex-row lg:items-center gap-3"}>
+              <div className={"flex-1 relative"}>
+                <SearchIcon className={"absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#8A95B0]"} />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={"Hujjat nomi yoki raqami bo'yicha qidirish..."}
+                  className={"w-full h-[48px] pl-12 pr-4 rounded-[12px] border border-[#DCE3F0] text-[14px] placeholder:text-[#8A95B0] outline-none focus:border-[#1D5BE8] focus:ring-4 focus:ring-[#1D5BE8]/10 transition"}
+                />
+              </div>
+              <div className={"grid grid-cols-2 sm:flex gap-2"}>
+                {[
+                  [category, setCategory, LayersIcon, SRN_CATEGORIES, "sm:w-[260px]"],
+                  [pdfLang, setPdfLang, GlobeIcon, [["all", "Barcha tillar"], ["uz", "O'zbekcha PDF"], ["ru", "Ruscha PDF"]], "sm:w-[200px]"],
+                ].map(([value, setter, Icon, options, w], i) => (
+                  <div key={i} className={clsx("relative min-w-0", w)}>
+                    <Icon className={"absolute left-3 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[#5B6788] pointer-events-none"} />
+                    <select
+                      value={value}
+                      onChange={(e) => setter(e.target.value)}
+                      className={"appearance-none w-full h-[48px] pl-10 pr-9 rounded-[12px] border border-[#DCE3F0] bg-white text-[14px] outline-none focus:border-[#1D5BE8] cursor-pointer truncate"}
+                    >
+                      {options.map(([id, label]) => (
+                        <option key={id} value={id}>{label}</option>
+                      ))}
+                    </select>
+                    <ChevronDownIcon className={"absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"} />
+                  </div>
+                ))}
+              </div>
             </div>
-            <h4 className="text-xl font-bold text-grey-900 mb-2 text-center">
-              2023-yil 1-yanvardan majburiyligi bekor qilingan (
-              <a
-                href="https://lex.uz/docs/6230882#6231369"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 underline hover:text-blue-800"
-              >
-                06.10.2022 yildagi 577-son VMQ
-              </a>
-              )
-            </h4>
-          </div> 
-          
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-blue-900 mb-2 text-center">Smeta-Resurs Normalari</h1>
+
+            {/* Statistika = bo'limlar */}
+            <div className={"grid grid-cols-2 xl:grid-cols-4 gap-3"}>
+              {tabs.map(({ id, label, value, Icon, tone }) => {
+                const active = tab === id;
+                return (
+                  <button
+                    key={id}
+                    type={"button"}
+                    onClick={() => switchTab(id)}
+                    className={clsx(
+                      "flex items-center gap-4 rounded-[14px] px-4 py-3.5 text-left transition-all",
+                      active ? "bg-[#1E63F0] text-white shadow-[0_10px_24px_rgba(30,99,240,0.3)]" : "bg-white border border-[#EEF2FA] hover:border-[#D6E2FB]"
+                    )}
+                  >
+                    <span className={clsx("w-12 h-12 shrink-0 rounded-[12px] flex items-center justify-center", active ? "bg-white/20" : tone)}>
+                      <Icon className={"w-6 h-6"} />
+                    </span>
+                    <span className={"min-w-0"}>
+                      <span className={clsx("block text-[13px] truncate", active ? "text-white/85" : "text-[#5B6788]")}>{label}</span>
+                      <span className={"block text-[22px] font-extrabold leading-tight"}>{srn ? value : "—"}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-          
-          <div className="gap-6 mb-12">
-            {/* Main Content */}
-            <div className="flex-1">
-              <div className="bg-white rounded-xl shadow-md overflow-hidden">
-                <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-                  {/* Add search or other header elements here */}
-                </div>
-                
-                <div className="overflow-x-auto">
-                  <table className="w-full">
+
+          <div className={clsx(card, "overflow-hidden")}>
+            {error ? (
+              <div className={"p-10 text-center text-[#E5484D]"}>{error}</div>
+            ) : !srn || groups === null ? (
+              <div className={"p-6"}><ContentLoader /></div>
+            ) : (
+              visibleRows.length === 0 ? (
+                <Empty />
+              ) : (
+                <div className={"overflow-x-auto"}>
+                  <table className={"w-full min-w-[1100px] text-[14px]"}>
                     <thead>
-                      <tr className="bg-gray-100">
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-2">
-                          №
-                        </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-32">
-                          YANGI SHNQ
-                        </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-20">
-                          HUJJAT NOMI
-                        </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-60">
-                          ESKI SHNQ NOMI
-                        </th>
-                        <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider w-24">
-                          PDF
-                        </th>
-                        <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider w-24">
-                          FAYL
-                        </th>
+                      <tr className={"bg-[#F3F6FC] border-b border-[#E6ECF7]"}>
+                        <th className={clsx(th, "w-[56px] text-center")}>№</th>
+                        <th className={clsx(th, "w-[150px]")}>Yangi SHNQ</th>
+                        <th className={th}>Hujjat nomi</th>
+                        <th className={clsx(th, "w-[360px]")}>Eski ShNQ nomi</th>
+                        <th className={clsx(th, "w-[110px]")}>Tili</th>
+                        <th className={clsx(th, "w-[80px] text-center")}>PDF</th>
+                        <th className={clsx(th, "w-[80px] text-center")}>Fayl</th>
+                        <th className={"w-[52px]"} />
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {displayedData.map((item, idx) => {
-                        const localizedItem = getLocalizedText(item);
-                        const srnNumberOnly = extractNumberFromDesignation(item.sren_designation);
-                        const shouldHighlight = highlight === srnNumberOnly;
-                        
-                        if (!item.sren_shnk || item.sren_shnk.length === 0) {
-                          return (
-                            <tr 
-                              key={`empty-${idx}`} 
-                              className={`hover:bg-gray-50 transition-colors ${shouldHighlight ? 'highlight-row' : ''}`}
-                              ref={shouldHighlight ? highlightedRowRef : null}
-                            >
-                              <td className="px-6 py-4 text-sm text-gray-900 font-medium">{idx + 1}</td>
-                              <td className="px-6 py-4 text-sm">
-                                <span className="inline-flex items-center px-3 py-1 rounded-md bg-blue-50 text-blue-700 font-semibold">
-                                  {item.sren_designation}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 text-sm text-gray-900">
-                                {localizedItem.name}
-                              </td>
-                              <td className="px-6 py-4 text-sm text-center">
-                                <span className="text-gray-400">-</span>
-                              </td>
-                              <td className="px-6 py-4 text-center">
-                                <span className="text-gray-400">-</span>
-                              </td>
-                              <td className="px-6 py-4 text-center">
-                                {hasValidPdf(localizedItem.pdf) ? (
-                                  <a
-                                    href={`https://main.tmsiti.uz/media/${localizedItem.pdf}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors"
-                                  >
-                                    <Image
-                                      src={"/icons/download.svg"}
-                                      alt="download"
-                                      width={20}
-                                      height={20}
-                                    />
-                                  </a>
-                                ) : (
-                                  <div className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-gray-100" title="PDF mavjud emas">
-                                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                    </svg>
-                                  </div>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        }
-
-                        return item.sren_shnk.map((shnk, shnkIdx) => {
-                          const localizedShnk = getLocalizedText(item, shnk);
-                          const shnkNumberOnly = extractNumberFromDesignation(shnk.sren_designation);
-                          const shnkShouldHighlight = highlight === shnkNumberOnly;
-                          const isFirst = shnkIdx === 0;
-                          const shnkPdfUrl = getShnkPdfUrl(localizedShnk, currentLanguage);
-                          
-                          return (
-                            <tr 
-                              key={`${idx}-${shnkIdx}`} 
-                              className={`hover:bg-gray-50 transition-colors ${shnkShouldHighlight ? 'highlight-row' : ''}`}
-                              ref={shnkShouldHighlight ? highlightedRowRef : null}
-                            >
-                              {isFirst && (
-                                <>
-                                  <td
-                                    className="px-6 py-4 text-sm text-gray-900 font-medium align-middle border-r border-gray-200"
-                                    rowSpan={item.sren_shnk.length}
-                                  >
-                                    {idx + 1}
-                                  </td>
-                                  <td
-                                    className="px-6 py-4 text-sm align-middle border-r border-gray-200"
-                                    rowSpan={item.sren_shnk.length}
-                                  >
-                                    <span className="inline-flex items-center px-3 py-1 rounded-md bg-blue-50 text-blue-700 font-semibold">
-                                      {item.sren_designation}
-                                    </span>
-                                  </td>
-                                  <td
-                                    className="px-6 py-4 text-sm text-gray-900 align-middle border-r border-gray-200"
-                                    rowSpan={item.sren_shnk.length}
-                                  >
-                                    {localizedItem.name}
-                                  </td>
-                                </>
-                              )}
-                              <td className="px-6 py-4 text-sm align-middle border-r border-gray-200">
-                                <div className="space-y-1">
-                                  <div className="text-gray-900 font-semibold">{shnk.sren_designation}</div>
-                                  <div className="text-xs text-gray-500 leading-relaxed">{localizedShnk.shnkName}</div>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 text-center align-middle border-r border-gray-200">
-                                {hasValidPdf(shnkPdfUrl) ? (
-                                  <a
-                                    href={`https://main.tmsiti.uz/media/${shnkPdfUrl}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors"
-                                  >
-                                    <Image
-                                      src={"/icons/download.svg"}
-                                      alt="download"
-                                      width={20}
-                                      height={20}
-                                    />
-                                  </a>
-                                ) : (
-                                  <div className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-gray-100" title="PDF mavjud emas">
-                                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                    </svg>
-                                  </div>
-                                )}
-                              </td>
-                              {isFirst && (
-                                <td
-                                  className="px-6 py-4 text-center align-middle"
-                                  rowSpan={item.sren_shnk.length}
-                                >
-                                  {hasValidPdf(localizedItem.pdf) ? (
-                                    <a
-                                      href={`https://main.tmsiti.uz/media/${localizedItem.pdf}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors"
-                                    >
-                                      <Image
-                                        src={"/icons/download.svg"}
-                                        alt="download"
-                                        width={20}
-                                        height={20}
-                                      />
-                                    </a>
-                                  ) : (
-                                    <div className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-gray-100" title="PDF mavjud emas">
-                                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                      </svg>
+                    <tbody>
+                      {visibleRows.map((r, i) => (
+                        <tr
+                          key={r.key}
+                          ref={r.highlighted ? highlightRef : null}
+                          className={clsx("border-b border-[#EEF2FA] last:border-0 transition-colors align-middle", r.highlighted ? "bg-[#FFF6DB] animate-pulse" : "hover:bg-[#FAFBFE]")}
+                        >
+                          <td className={"py-4 px-4 text-center font-semibold text-[#5B6788]"}>{i + 1}</td>
+                          <td className={"py-4 px-4"}>
+                            <span className={clsx("inline-block px-3 py-1.5 rounded-[8px] text-[13px] font-semibold whitespace-nowrap", r.addendum ? "bg-[#FFF1E4] text-[#C9620E]" : "bg-[#E8F0FE] text-[#1D5BE8]")}>
+                              {r.code}
+                            </span>
+                          </td>
+                          <td className={"py-4 px-4 leading-[1.5] text-[#1E2B5A]"}>{r.name}</td>
+                          <td className={"py-3 px-4"}>
+                            {r.old.length === 0 ? (
+                              <span className={"text-[#C3CAD9]"}>—</span>
+                            ) : (
+                              <div className={"space-y-2"}>
+                                {r.old.map((o) => (
+                                  <div key={o.code} className={"rounded-[10px] bg-[#F7F9FD] border-l-[3px] border-[#C9D6F2] px-3 py-2"}>
+                                    <div className={"flex items-center gap-2"}>
+                                      <span className={"text-[13px] font-bold"}>{o.code}</span>
+                                      {o.file && (
+                                        <button type={"button"} onClick={() => open(o)} className={"ml-auto text-[12px] font-semibold text-[#1D5BE8] hover:underline"}>
+                                          PDF
+                                        </button>
+                                      )}
                                     </div>
-                                  )}
-                                </td>
-                              )}
-                            </tr>
-                          );
-                        });
-                      })}
+                                    {o.name && <p className={"mt-0.5 text-[12px] leading-[1.45] text-[#5B6788]"}>{o.name}</p>}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </td>
+                          <td className={"py-4 px-4"}><LangBadges uz={r.fileUz} ru={r.fileRu} /></td>
+                          <td className={"py-4 px-4 text-center"}><PdfButton disabled={!r.file} onClick={() => open(r)} /></td>
+                          <td className={"py-4 px-4 text-center"}><DownloadButton file={r.file} /></td>
+                          <td className={"py-4 pr-3"}>
+                            <RowMenu
+                              items={[
+                                r.fileUz && { label: "O'zbekcha PDF (yangi oyna)", Icon: ExternalLinkIcon, href: `${config.MEDIA_URL}${r.fileUz}` },
+                                r.fileRu && { label: "Ruscha PDF (yangi oyna)", Icon: ExternalLinkIcon, href: `${config.MEDIA_URL}${r.fileRu}` },
+                                { label: "Havolani nusxalash", Icon: CopyIcon, onClick: () => copyLink(r.code) },
+                              ]}
+                            />
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
-                  
-                  {/* Batafsil tugmasi */}
-                  {data.length > 5 && (
-                    <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 text-end">
-                      <button
-                        onClick={handleShowAll}
-                        className="inline-flex items-end justify-end px-6 py-3 bg-blue-900 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
-                      >
-                        {showAll ? '' : ''}
-                        <svg 
-                          className={`ml-2 w-5 h-5 transform transition-transform ${showAll ? 'rotate-180' : ''}`}
-                          fill="none" 
-                          stroke="currentColor" 
-                          viewBox="0 0 24 24"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </button>
-                      <p className="mt-2 text-sm text-gray-600">
-                        {showAll 
-                          ? `Hamma ${data.length} ta ma'lumot ko'rsatilmoqda` 
-                          : `Hozir ${displayedData.length} ta ma'lumot ko'rsatilmoqda, jami ${data.length} ta`}
-                      </p>
-                    </div>
-                  )}
                 </div>
-              </div>
+              )
+            )}
+          </div>
+
+          {/* Maʼlumotnomalar (4-quyi tizim) — SRN jadvalidan keyin, doim ko'rinadi */}
+          <div ref={refsRef} className={"scroll-mt-6 pt-6 flex flex-col sm:flex-row sm:items-end gap-3"}>
+            <div className={"flex-1"}>
+              <h2 className={"text-[26px] md:text-[30px] font-extrabold tracking-[-0.01em]"}>Maʼlumotnomalar</h2>
+              <p className={"text-[14px] text-[#5B6788]"}>
+                4-quyi tizim: smeta normativ hujjatlari va resurs elementlari to&apos;plamlari
+                {groups && <span className={"font-semibold text-[#1D5BE8]"}> — {refCount} ta hujjat</span>}
+              </p>
+            </div>
+            <div className={"relative sm:w-[340px] min-w-0"}>
+              <LayersIcon className={"absolute left-3 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[#5B6788] pointer-events-none"} />
+              <select
+                value={refGroup}
+                onChange={(e) => setRefGroup(e.target.value)}
+                className={"appearance-none w-full h-[48px] pl-10 pr-9 rounded-[12px] border border-[#DCE3F0] bg-white text-[14px] outline-none focus:border-[#1D5BE8] cursor-pointer truncate"}
+              >
+                <option value={"all"}>Barcha guruhlar</option>
+                {refs.map((g) => (
+                  <option key={g.title} value={g.title}>{displayText(g.title, lang)}</option>
+                ))}
+              </select>
+              <ChevronDownIcon className={"absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"} />
             </div>
           </div>
 
-          {/* Ikkinchi jadval - SHNK ma'lumotnomalari */}
-          {flattenedData.length > 0 && (
-            <>
-              <div className="mb-8">
-                <h1 className="text-3xl font-bold text-blue-900 mb-2 text-center">Maʼlumotnomalar</h1>
-              </div>
-              
-              <div className="gap-6">
-                <div className="flex-1">
-                  <div className="bg-white rounded-xl shadow-md overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="bg-grey-200">
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-2">
-                              №
-                            </th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-32">
-                              ШИФР
-                            </th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-80">
-                              ХУЖЖАТ НОМИ
-                            </th>
-                            <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider w-24">
-                              КУРИШ
-                            </th>
-                            <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider w-24">
-                              LEX.UZ
-                            </th>
+          <div className={clsx(card, "overflow-hidden")}>
+            {error ? (
+              <div className={"p-10 text-center text-[#E5484D]"}>{error}</div>
+            ) : groups === null ? (
+              <div className={"p-6"}><ContentLoader /></div>
+            ) : visibleRefs.length === 0 ? (
+              <Empty />
+            ) : (
+              <div className={"overflow-x-auto"}>
+                <table className={"w-full min-w-[900px] text-[14px]"}>
+                  <thead>
+                    <tr className={"bg-[#F3F6FC] border-b border-[#E6ECF7]"}>
+                      <th className={clsx(th, "w-[56px] text-center")}>№</th>
+                      <th className={clsx(th, "w-[180px]")}>Shifr</th>
+                      <th className={th}>Hujjat nomi</th>
+                      <th className={clsx(th, "w-[110px]")}>Tili</th>
+                      <th className={clsx(th, "w-[80px] text-center")}>PDF</th>
+                      <th className={clsx(th, "w-[80px] text-center")}>Fayl</th>
+                      <th className={"w-[52px]"} />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      let n = 0;
+                      return visibleRefs.map((g) => (
+                        <React.Fragment key={g.title}>
+                          <tr className={"bg-[#EEF4FF]"}>
+                            <td colSpan={7} className={"py-3 px-4 text-[14px] font-bold text-[#1D4FC4]"}>{displayText(g.title, lang)}</td>
                           </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {flattenedData.map((item) => {
-                            if (item.type === 'group-header') {
-                              return (
-                                <tr key={item.id} className="bg-blue-50">
-                                  <td colSpan="5" className="px-6 py-3">
-                                    <div className="font-bold text-lg text-blue-900">
-                                      {item.title}
-                                    </div>
-                                  </td>
-                                </tr>
-                              );
-                            }
-                            
-                            // SHNK item
+                          {g.docs.map((d) => {
+                            n += 1;
                             return (
-                              <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                                <td className="px-6 py-4 text-sm text-gray-900 font-medium">
-                                  {item.index}
-                                </td>
-                                <td className="px-6 py-4 text-sm">
-                                  <span className="inline-flex items-center px-3 py-1 rounded-md bg-blue-50 text-blue-700 font-semibold">
-                                    {item.designation}
+                              <tr key={`${g.title}-${d.code}-${n}`} className={"border-b border-[#EEF2FA] hover:bg-[#FAFBFE]"}>
+                                <td className={"py-3.5 px-4 text-center font-semibold text-[#5B6788]"}>{n}</td>
+                                <td className={"py-3.5 px-4"}>
+                                  <span className={"inline-block px-3 py-1.5 rounded-[8px] bg-[#F1ECFD] text-[#6A48D4] text-[13px] font-semibold whitespace-nowrap"}>
+                                    {displayCode(d.code, lang)}
                                   </span>
                                 </td>
-                                <td className="px-6 py-4 text-sm text-gray-900">
-                                  {item.name}
-                                </td>
-                                <td className="px-6 py-4 text-center">
-                                  {(item.pdf_uz || item.pdf_ru) ? (
-                                    <a
-                                      href={encodeURI(item.pdf_uz ?
-                                        `https://main.tmsiti.uz/media/${item.pdf_uz}` :
-                                        `https://main.tmsiti.uz/media/${item.pdf_ru}`
-                                      )}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors"
-                                      title="PDF ko'rish"
-                                    >
-                                      <Image
-                                        src={"/icons/download.svg"}
-                                        alt="download"
-                                        width={20}
-                                        height={20}
-                                      />
-                                    </a>
-                                  ) : (
-                                    <div className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-gray-100" title="PDF mavjud emas">
-                                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                      </svg>
-                                    </div>
-                                  )}
-                                </td>
-                                <td className="px-6 py-4 text-center">
-                                  {item.url ? (
-                                    <a
-                                      href={item.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
-                                      title="Lex.uz sahifasiga o'tish"
-                                    >
-                                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                                        <polyline points="15 3 21 3 21 9" />
-                                        <line x1="10" y1="14" x2="21" y2="3" />
-                                      </svg>
-                                    </a>
-                                  ) : (
-                                    <div className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-gray-100" title="URL mavjud emas">
-                                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                      </svg>
-                                    </div>
-                                  )}
+                                <td className={"py-3.5 px-4 leading-[1.5] text-[#1E2B5A]"}>{d.name}</td>
+                                <td className={"py-3.5 px-4"}><LangBadges uz={d.fileUz} ru={d.fileRu} /></td>
+                                <td className={"py-3.5 px-4 text-center"}><PdfButton disabled={!d.file} onClick={() => open(d)} /></td>
+                                <td className={"py-3.5 px-4 text-center"}><DownloadButton file={d.file} /></td>
+                                <td className={"py-3.5 pr-3"}>
+                                  <RowMenu
+                                    items={[
+                                      d.url && { label: "Lex.uz'da ochish", Icon: ExternalLinkIcon, href: d.url },
+                                      d.file && { label: "PDF (yangi oyna)", Icon: ExternalLinkIcon, href: `${config.MEDIA_URL}${d.file}` },
+                                    ]}
+                                  />
                                 </td>
                               </tr>
                             );
                           })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
+                        </React.Fragment>
+                      ));
+                    })()}
+                  </tbody>
+                </table>
               </div>
-            </>
-          )}
-        </div>
+            )}
+          </div>
+        </section>
       </div>
-      <style jsx>{`
-        .highlight-row {
-          background-color: #fef3c7 !important;
-          animation: pulse 2s ease-in-out infinite;
-        }
-        
-        @keyframes pulse {
-          0%, 100% { 
-            background-color: #fef3c7;
-          }
-          50% { 
-            background-color: #fde68a;
-          }
-        }
-      `}</style>
+
+      {viewing && <PdfViewerModal doc={viewing} onClose={() => setViewing(null)} />}
     </Main>
   );
 };
+
+const Empty = () => (
+  <div className={"p-12 text-center"}>
+    <FileSearchIcon className={"w-12 h-12 mx-auto text-[#8A95B0]"} />
+    <p className={"mt-4 text-[16px] font-semibold"}>Hech narsa topilmadi</p>
+    <p className={"mt-1 text-[14px] text-[#5B6788]"}>Qidiruv so&apos;zini yoki filtrlarni o&apos;zgartirib ko&apos;ring.</p>
+  </div>
+);
 
 export default Index;

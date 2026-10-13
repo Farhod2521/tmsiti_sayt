@@ -407,3 +407,41 @@ export const PlusIcon = ({ className }) => (
     <path d="M12 5v14M5 12h14" />
   </svg>
 );
+
+export const HomeIcon = ({ className }) => (
+  <svg className={className} {...base}>
+    <path d="M3.5 10.5 12 3.5l8.5 7" />
+    <path d="M5.5 9v11h13V9" />
+    <path d="M10 20v-5.5h4V20" />
+  </svg>
+);
+
+export const ScaleIcon = ({ className }) => (
+  <svg className={className} {...base}>
+    <path d="M12 3.5v17M7 20.5h10" />
+    <path d="M4.5 7h15" />
+    <path d="M6.5 7 3.5 13.5a3 3 0 0 0 6 0L6.5 7ZM17.5 7l-3 6.5a3 3 0 0 0 6 0L17.5 7Z" />
+  </svg>
+);
+
+export const LandmarkIcon = ({ className }) => (
+  <svg className={className} {...base}>
+    <path d="M3.5 9.5 12 4l8.5 5.5" />
+    <path d="M5 9.5h14M6.5 9.5v8M10 9.5v8M14 9.5v8M17.5 9.5v8M4 20h16M4.5 17.5h15" />
+  </svg>
+);
+
+export const BookIcon = ({ className }) => (
+  <svg className={className} {...base}>
+    <path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5v-15Z" />
+    <path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3" />
+    <path d="M9 7.5h6" />
+  </svg>
+);
+
+export const CopyIcon = ({ className }) => (
+  <svg className={className} {...base}>
+    <rect x="8.5" y="8.5" width="11" height="11" rx="2" />
+    <path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5" />
+  </svg>
+);
