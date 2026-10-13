@@ -7,6 +7,7 @@ import clsx from "clsx";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "next/router";
 import ContentLoader from "@/components/loader/content-loader";
+import { displayText, searchNorm } from "@/utils/translit";
 import { Checkbox, CountBadge } from "@/components/filter-controls";
 import {
   BuildingsIcon,
@@ -157,7 +158,8 @@ const filterDocs = (items, predicate) =>
 const cardShadow = "shadow-[0_8px_30px_rgba(16,42,116,0.06)]";
 
 const Index = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("yangi");
   const [viewMode, setViewMode] = useState("list");
@@ -281,13 +283,10 @@ const Index = () => {
     }
 
     if (searchQuery.trim() !== "") {
-      const query = searchQuery.toLowerCase().trim();
-      result = filterDocs(
-        result,
-        (doc) =>
-          (doc.name_uz && doc.name_uz.toLowerCase().includes(query)) ||
-          (doc.name_ru && doc.name_ru.toLowerCase().includes(query)) ||
-          (doc.designation && doc.designation.toLowerCase().includes(query))
+      // Kirill/lotindan qat'i nazar: "qurilish" yozilsa "Қурилиш" ham topiladi
+      const query = searchNorm(searchQuery);
+      result = filterDocs(result, (doc) =>
+        searchNorm(`${doc.name_uz || ""} ${doc.name_ru || ""} ${doc.designation || ""}`).includes(query)
       );
     }
 
@@ -616,7 +615,7 @@ const Index = () => {
         }
       >
         {label && <p>{label}</p>}
-        <p>{number}</p>
+        <p>{displayText(number, lang)}</p>
       </div>
     );
     const icon = (
@@ -642,7 +641,7 @@ const Index = () => {
             {code}
           </div>
           <p className={"mt-3 text-[14px] leading-[1.45] text-[#1E2B5A]"}>
-            {doc.name_uz}
+            {displayText(doc.name_uz, lang)}
           </p>
           {renderTags(doc)}
           <div className={"mt-auto pt-4"}>
@@ -665,7 +664,7 @@ const Index = () => {
         </div>
         <div className={"flex-1 min-w-0"}>
           <p className={"text-[14px] leading-[1.45] text-[#1E2B5A]"}>
-            {doc.name_uz}
+            {displayText(doc.name_uz, lang)}
           </p>
           {renderTags(doc)}
         </div>
@@ -753,7 +752,7 @@ const Index = () => {
                     "flex-1 text-[15px] md:text-[16px] font-bold text-[#0B1A4F]"
                   }
                 >
-                  {item.title}
+                  {displayText(item.title, lang)}
                 </h3>
                 <span
                   className={
@@ -797,7 +796,7 @@ const Index = () => {
                               "flex-1 text-[14px] md:text-[15px] font-semibold text-[#1D4FC4]"
                             }
                           >
-                            {group.title}
+                            {displayText(group.title, lang)}
                           </h4>
                           <span
                             className={
