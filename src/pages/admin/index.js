@@ -7,6 +7,9 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import { config } from "@/config";
 import AnalyticsDashboard from "@/components/analytics/dashboard";
+import ChatPanel from "@/components/admin/chat-panel";
+import SuggestionsPanel from "@/components/admin/suggestions-panel";
+import { useLiveSocket } from "@/utils/live-socket";
 import {
   ChartBoxIcon,
   CheckIcon,
@@ -19,6 +22,7 @@ import {
   HistoryIcon,
   LockIcon,
   LogoutIcon,
+  MessageIcon,
   RefreshUpIcon,
   SearchIcon,
   TrashIcon,
@@ -27,6 +31,7 @@ import {
 
 const API = config.BASE_MAIN_API;
 const TOKEN_KEY = "shnq_admin_token";
+const USER_KEY = "shnq_admin_user";
 const ACCEPT = ".doc,.docx,.htm,.html";
 
 const card = "bg-white rounded-[18px] border border-[#EEF2FA] shadow-[0_8px_30px_rgba(16,42,116,0.06)]";
@@ -60,20 +65,21 @@ const errorText = (err, fallback = "Xatolik yuz berdi") =>
 //   LOGIN
 // ===================================================================
 const LoginScreen = ({ onLogin }) => {
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!password) return;
+    if (!username || !password) return;
     setLoading(true);
     setError(null);
     try {
-      const { data } = await axios.post(`${API}shnq-admin/login/`, { password });
-      onLogin(data.token);
+      const { data } = await axios.post(`${API}shnq-admin/login/`, { username: username.trim(), password });
+      onLogin(data.token, data.user);
     } catch (err) {
-      setError(errorText(err, "Parol noto'g'ri"));
+      setError(errorText(err, "Login yoki parol noto'g'ri"));
       setPassword("");
     } finally {
       setLoading(false);
@@ -82,25 +88,35 @@ const LoginScreen = ({ onLogin }) => {
 
   return (
     <div className={"min-h-screen font-jakarta bg-gradient-to-br from-[#F6F9FF] via-white to-[#EAF1FF] flex items-center justify-center p-4"}>
-      <form onSubmit={submit} className={clsx(card, "w-full max-w-[400px] p-8")}>
+      <form onSubmit={submit} className={clsx(card, "w-full max-w-[400px] p-8")} autoComplete={"on"}>
         <div className={"w-[60px] h-[60px] rounded-[16px] bg-[#E8F0FE] text-[#1D5BE8] flex items-center justify-center mx-auto"}>
           <LockIcon className={"w-8 h-8"} />
         </div>
         <h1 className={"mt-5 text-center text-[22px] font-extrabold text-[#0B1A4F]"}>Admin panel</h1>
-        <p className={"mt-1 text-center text-[14px] text-[#5B6788]"}>SHNQ hujjatlarini boshqarish</p>
-        <label className={"block mt-7 text-[13px] font-semibold text-[#0B1A4F]"}>Parol</label>
+        <p className={"mt-1 text-center text-[14px] text-[#5B6788]"}>TMSITI — boshqaruv paneli</p>
+        <label className={"block mt-7 text-[13px] font-semibold text-[#0B1A4F]"}>Login</label>
+        <input
+          autoFocus
+          name={"username"}
+          autoComplete={"username"}
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          className={clsx(input, "mt-2", error && "border-[#E5484D]")}
+        />
+        <label className={"block mt-4 text-[13px] font-semibold text-[#0B1A4F]"}>Parol</label>
         <input
           type={"password"}
-          autoFocus
+          name={"password"}
+          autoComplete={"current-password"}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className={clsx(input, "mt-2", error && "border-[#E5484D]")}
-          placeholder={"••••"}
+          placeholder={"••••••••"}
         />
         {error && <p className={"mt-2 text-[13px] text-[#E5484D]"}>{error}</p>}
         <button
           type={"submit"}
-          disabled={loading || !password}
+          disabled={loading || !username || !password}
           className={"mt-6 w-full h-[46px] rounded-[12px] bg-[#1D5BE8] text-white text-[15px] font-semibold hover:bg-[#174FD0] disabled:opacity-60 transition-colors"}
         >
           {loading ? "Tekshirilmoqda..." : "Kirish"}
@@ -700,8 +716,15 @@ const LexSyncPanel = ({ client, onOpenDoc }) => {
   );
 };
 
-// Admin panelda ko'rinadigan bo'limlar. "docs" (Hujjatlar) va "lex" (lex.uz import) hozircha yashirilgan.
-const VISIBLE_TABS = ["stats"]; // ["stats", "docs", "lex"]
+// Admin panel bo'limlari (chap menyu)
+const SECTIONS = [
+  { id: "stats", label: "Statistika", hint: "Sayt tashriflari va foydalanuvchilar", Icon: ChartBoxIcon },
+  { id: "chat", label: "Chat", hint: "Saytdagi yordamchi orqali yozgan mehmonlar", Icon: MessageIcon, badge: "chat_unread" },
+  { id: "suggestions", label: "Takliflar", hint: "Hujjatlarga yuborilgan takliflar va xatoliklar", Icon: EditIcon, badge: "suggestions_new" },
+  { id: "docs", label: "Hujjatlarni yuklash", hint: "SHNQ matnlari va tahrirlarini yuklash", Icon: FileTextIcon },
+  { id: "lex", label: "lex.uz import", hint: "Hujjatlarni lex.uz dan avtomatik yuklash", Icon: RefreshUpIcon },
+];
+const VISIBLE_TABS = SECTIONS.map((s) => s.id);
 
 const FILTERS = [
   { id: "", label: "Barchasi" },
@@ -709,7 +732,7 @@ const FILTERS = [
   { id: "0", label: "Matnsiz" },
 ];
 
-const Dashboard = ({ token, onLogout }) => {
+const Dashboard = ({ token, user, onLogout }) => {
   const client = React.useMemo(() => {
     const instance = axios.create({ baseURL: API, headers: { "X-Admin-Token": token } });
     instance.interceptors.response.use(
@@ -735,6 +758,46 @@ const Dashboard = ({ token, onLogout }) => {
   const [selectedId, setSelectedId] = useState(null);
 
   const [tab, setTab] = useState("stats");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [badges, setBadges] = useState({ chat_unread: 0, suggestions_new: 0 });
+  const [liveEvent, setLiveEvent] = useState(null);
+
+  const loadBadges = useCallback(() => {
+    client
+      .get("shnq-admin/badges/")
+      .then(({ data }) => setBadges(data))
+      .catch(() => {});
+  }, [client]);
+
+  useEffect(() => {
+    loadBadges();
+    const timer = setInterval(loadBadges, 60000);
+    return () => clearInterval(timer);
+  }, [loadBadges]);
+
+  // Real vaqt: yangi chat xabarlari va takliflar (token birinchi xabarda yuboriladi)
+  const liveConnected = useLiveSocket("admin/chat/", {
+    onOpen: (socket) => socket.send(JSON.stringify({ type: "auth", token })),
+    onEvent: (data) => {
+      setLiveEvent({ ...data, at: Date.now() });
+      if (["message", "read", "suggestion"].includes(data.event)) loadBadges();
+      if (data.event === "message" && data.message?.sender === "visitor") {
+        toast(`💬 ${data.room?.title || "Mehmon"}: ${data.message.text.slice(0, 80)}`, { duration: 4000 });
+      }
+    },
+  });
+
+  // Brauzer sarlavhasida o'qilmagan xabarlar soni
+  useEffect(() => {
+    const n = badges.chat_unread || 0;
+    document.title = `${n ? `(${n}) ` : ""}Admin panel — TMSITI`;
+  }, [badges.chat_unread]);
+
+  const goTo = (id) => {
+    setTab(id);
+    setSidebarOpen(false);
+    router.replace({ pathname: router.pathname, query: id === "stats" ? {} : { tab: id } }, undefined, { shallow: true });
+  };
 
   // /admin?doc=12 — hujjatni to'g'ridan-to'g'ri ochish; /admin?tab=lex — lex.uz import bo'limi
   useEffect(() => {
@@ -813,49 +876,95 @@ const Dashboard = ({ token, onLogout }) => {
     return acc;
   }, {});
 
+  const section = SECTIONS.find((x) => x.id === tab) || SECTIONS[0];
+
   return (
-    <div className={"min-h-screen font-jakarta bg-[#F6F9FF] text-[#0B1A4F]"}>
-      <header className={"sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-[#EEF2FA]"}>
-        <div className={"max-w-[1536px] mx-auto px-4 lg:px-8 h-[64px] flex items-center gap-4"}>
-          <div className={"w-10 h-10 rounded-[12px] bg-[#1D5BE8] text-white flex items-center justify-center"}>
+    <div className={"min-h-screen font-jakarta bg-[#F4F7FC] text-[#0B1A4F] lg:pl-[260px]"}>
+      {/* Chap menyu */}
+      {sidebarOpen && <div className={"fixed inset-0 z-30 bg-[#0B1A4F]/30 lg:hidden"} onClick={() => setSidebarOpen(false)} />}
+      <aside
+        className={clsx(
+          "fixed inset-y-0 left-0 z-40 w-[260px] bg-[#0B1A4F] text-white flex flex-col transition-transform lg:translate-x-0",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        <div className={"h-[68px] px-5 flex items-center gap-3 border-b border-white/10"}>
+          <div className={"w-10 h-10 rounded-[12px] bg-[#1D5BE8] flex items-center justify-center"}>
             <DatabaseIcon className={"w-6 h-6"} />
           </div>
-          <div className={"flex-1"}>
-            <p className={"text-[16px] font-extrabold leading-tight"}>TMSITI · Admin panel</p>
-            <p className={"text-[12px] text-[#5B6788]"}>Statistika, SHNQ hujjatlari va lex.uz import</p>
+          <div>
+            <p className={"text-[16px] font-extrabold leading-tight"}>TMSITI</p>
+            <p className={"text-[12px] text-white/60"}>Boshqaruv paneli</p>
           </div>
-          <Link href={"/shnq"} target={"_blank"} className={"hidden sm:flex h-10 px-4 rounded-[12px] items-center gap-2 text-[14px] font-medium text-[#1D5BE8] hover:bg-[#EEF4FF]"}>
-            <ExternalLinkIcon className={"w-4 h-4"} /> Saytda ko&apos;rish
+        </div>
+        <nav className={"flex-1 overflow-y-auto p-3 space-y-1"}>
+          {SECTIONS.map(({ id, label, Icon, badge }) => {
+            const count = badge ? badges[badge] : 0;
+            return (
+              <button
+                key={id}
+                type={"button"}
+                onClick={() => goTo(id)}
+                className={clsx(
+                  "w-full h-11 px-3 rounded-[12px] flex items-center gap-3 text-[14px] font-medium transition-colors",
+                  tab === id ? "bg-[#1D5BE8] text-white shadow-[0_6px_18px_rgba(29,91,232,0.45)]" : "text-white/70 hover:bg-white/10 hover:text-white"
+                )}
+              >
+                <Icon className={"w-5 h-5 shrink-0"} />
+                <span className={"flex-1 text-left"}>{label}</span>
+                {count > 0 && (
+                  <span className={"min-w-[22px] h-[22px] px-1.5 rounded-full bg-[#E5484D] text-white text-[11px] font-bold flex items-center justify-center"}>
+                    {count > 99 ? "99+" : count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+        <div className={"p-3 border-t border-white/10 space-y-1"}>
+          <Link href={"/"} target={"_blank"} className={"h-10 px-3 rounded-[10px] flex items-center gap-3 text-[13px] text-white/70 hover:bg-white/10 hover:text-white"}>
+            <ExternalLinkIcon className={"w-4 h-4"} /> Saytni ochish
           </Link>
-          <button type={"button"} onClick={onLogout} className={"h-10 px-4 rounded-[12px] flex items-center gap-2 text-[14px] font-medium text-[#E5484D] hover:bg-[#FDECEC]"}>
-            <LogoutIcon className={"w-5 h-5"} /> Chiqish
+          <div className={"px-3 py-2 flex items-center gap-3"}>
+            <div className={"w-9 h-9 rounded-full bg-white/15 flex items-center justify-center text-[14px] font-bold uppercase"}>
+              {(user?.name || user?.username || "A").slice(0, 1)}
+            </div>
+            <div className={"flex-1 min-w-0"}>
+              <p className={"text-[13px] font-semibold truncate"}>{user?.name || user?.username || "Admin"}</p>
+              <p className={"text-[11px] text-white/50"}>Administrator</p>
+            </div>
+            <button type={"button"} onClick={onLogout} aria-label={"Chiqish"} title={"Chiqish"} className={"w-9 h-9 rounded-[10px] flex items-center justify-center text-[#FF8A8D] hover:bg-white/10"}>
+              <LogoutIcon className={"w-5 h-5"} />
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Yuqori panel */}
+      <header className={"sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-[#EEF2FA]"}>
+        <div className={"px-4 lg:px-8 h-[68px] flex items-center gap-3"}>
+          <button type={"button"} onClick={() => setSidebarOpen(true)} className={"lg:hidden w-10 h-10 rounded-[10px] flex items-center justify-center hover:bg-[#F1F4FA]"} aria-label={"Menyu"}>
+            <svg viewBox={"0 0 24 24"} className={"w-6 h-6"} fill={"none"} stroke={"currentColor"} strokeWidth={"2"}>
+              <path d={"M4 6h16M4 12h16M4 18h16"} strokeLinecap={"round"} />
+            </svg>
           </button>
+          <div className={"flex-1 min-w-0"}>
+            <p className={"text-[18px] font-extrabold leading-tight truncate"}>{section.label}</p>
+            <p className={"text-[12px] text-[#5B6788] truncate"}>{section.hint}</p>
+          </div>
+          <span className={clsx("hidden sm:flex items-center gap-2 h-9 px-3 rounded-full text-[12px] font-medium", liveConnected ? "bg-[#E6F6EC] text-[#1E9E62]" : "bg-[#FFF6DB] text-[#9A6B00]")}>
+            <span className={clsx("w-2 h-2 rounded-full", liveConnected ? "bg-[#22C55E]" : "bg-[#F5B000]")} />
+            {liveConnected ? "Onlayn" : "Ulanmoqda..."}
+          </span>
         </div>
       </header>
 
-      <main className={"max-w-[1536px] mx-auto px-4 lg:px-8 py-6"}>
-        <div className={"mb-5 inline-flex rounded-[14px] bg-white border border-[#EEF2FA] p-1 shadow-[0_8px_30px_rgba(16,42,116,0.06)]"}>
-          {[
-            ["stats", "Statistika", ChartBoxIcon],
-            // Hozircha yashirilgan — qaytarish uchun izohni olib tashlang va yuqoridagi VISIBLE_TABS ga ham qo'shing
-            // ["docs", "Hujjatlar", FileTextIcon],
-            // ["lex", "lex.uz import", RefreshUpIcon],
-          ].map(([id, label, Icon]) => (
-            <button
-              key={id}
-              type={"button"}
-              onClick={() => setTab(id)}
-              className={clsx(
-                "h-10 px-4 rounded-[10px] flex items-center gap-2 text-[14px] font-semibold transition-colors",
-                tab === id ? "bg-[#1D5BE8] text-white" : "text-[#5B6788] hover:bg-[#F1F4FA]"
-              )}
-            >
-              <Icon className={"w-5 h-5"} /> {label}
-            </button>
-          ))}
-        </div>
-
+      <main className={"px-4 lg:px-8 py-6"}>
         {tab === "stats" && <AnalyticsDashboard client={client} />}
+
+        {tab === "chat" && <ChatPanel client={client} event={liveEvent} connected={liveConnected} />}
+
+        {tab === "suggestions" && <SuggestionsPanel client={client} event={liveEvent} onChanged={loadBadges} />}        {tab === "stats" && <AnalyticsDashboard client={client} />}
 
         {VISIBLE_TABS.includes("lex") && tab === "lex" && <LexSyncPanel client={client} onOpenDoc={openDoc} />}
 
@@ -1040,62 +1149,53 @@ const Dashboard = ({ token, onLogout }) => {
 };
 
 // ===================================================================
-// Admin panel faqat ruxsat etilgan IP manzildan ochiladi (backend: SHNQ_ADMIN_ALLOWED_IPS).
-// Boshqa IP uchun sahifa umuman yo'qdek ko'rinadi.
-const NotFoundScreen = () => (
-  <div className={"min-h-screen font-jakarta bg-white flex flex-col items-center justify-center p-6 text-center"}>
-    <p className={"text-[72px] font-extrabold leading-none text-[#0B1A4F]"}>404</p>
-    <p className={"mt-3 text-[16px] text-[#5B6788]"}>Sahifa topilmadi</p>
-    <Link href={"/"} className={"mt-6 text-[14px] font-medium text-[#1D5BE8] hover:underline"}>
-      Bosh sahifaga qaytish
-    </Link>
-  </div>
-);
-
+// Kirish — xodim login/paroli bilan (backend: Django foydalanuvchisi, is_staff).
+// Xodim yaratish: python manage.py shnq_admin_user <login>
 const AdminPage = () => {
   const [token, setToken] = useState(null);
-  const [access, setAccess] = useState("checking"); // checking | ok | denied
+  const [user, setUser] = useState(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     try {
       setToken(localStorage.getItem(TOKEN_KEY));
+      setUser(JSON.parse(localStorage.getItem(USER_KEY) || "null"));
     } catch (e) {
       setToken(null);
     }
-    axios
-      .get(`${API}shnq-admin/access/`)
-      .then(() => setAccess("ok"))
-      .catch(() => setAccess("denied"));
+    setReady(true);
   }, []);
 
-  const login = (value) => {
+  const login = (value, info) => {
     try {
       localStorage.setItem(TOKEN_KEY, value);
+      localStorage.setItem(USER_KEY, JSON.stringify(info || null));
     } catch (e) {
       // localStorage yopiq bo'lsa ham sessiya davomida ishlaydi
     }
     setToken(value);
+    setUser(info || null);
   };
 
   const logout = useCallback(() => {
     try {
       localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
     } catch (e) {
       // e'tiborsiz
     }
     setToken(null);
+    setUser(null);
   }, []);
 
   return (
     <>
       <Head>
-        <title>{access === "denied" ? "404 — Sahifa topilmadi" : "Admin panel — TMSITI"}</title>
+        <title>Admin panel — TMSITI</title>
         <meta name={"robots"} content={"noindex, nofollow"} />
       </Head>
-      {access === "checking" ? null : access === "denied" ? (
-        <NotFoundScreen />
-      ) : token ? (
-        <Dashboard token={token} onLogout={logout} />
+      {!ready ? null : token ? (
+        <Dashboard token={token} user={user} onLogout={logout} />
       ) : (
         <LoginScreen onLogin={login} />
       )}

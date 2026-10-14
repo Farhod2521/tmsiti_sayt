@@ -10,6 +10,7 @@ import Main from "@/layouts/main";
 import Menu from "@/components/menu";
 import ContentLoader from "@/components/loader/content-loader";
 import { config } from "@/config";
+import SuggestionModal from "./suggestion-modal";
 import {
   CalendarIcon,
   ChevronDownIcon,
@@ -21,6 +22,7 @@ import {
   GlobeIcon,
   HistoryIcon,
   LinkIcon,
+  MessageIcon,
   MinusIcon,
   MoreVerticalIcon,
   PlusIcon,
@@ -135,6 +137,9 @@ const DocumentView = ({ kind = "shnq" }) => {
   const [openPrev, setOpenPrev] = useState({});
   const [isFavorite, setIsFavorite] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Band yonidagi ⋮ menyusi (ochiq bandning id si) va "Hujjatga taklif yuborish" oynasi
+  const [blockMenu, setBlockMenu] = useState(null);
+  const [suggestTarget, setSuggestTarget] = useState(null);
   const [tocOpenMobile, setTocOpenMobile] = useState(false);
   const contentRef = useRef(null);
   const menuRef = useRef(null);
@@ -179,6 +184,7 @@ const DocumentView = ({ kind = "shnq" }) => {
   useEffect(() => {
     const onClick = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+      if (!(e.target.closest && e.target.closest(".lex-actions"))) setBlockMenu(null);
     };
     document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
@@ -334,6 +340,65 @@ const DocumentView = ({ kind = "shnq" }) => {
   const togglePrev = (blockId) =>
     setOpenPrev((prev) => ({ ...prev, [blockId]: !prev[blockId] }));
 
+  // ---------- band menyusi: taklif yuborish, havola ----------
+  const blockPlainText = (html = "") => {
+    try {
+      const text = new DOMParser().parseFromString(html, "text/html").body.textContent || "";
+      return text.replace(/\s+/g, " ").trim().slice(0, 1500);
+    } catch (e) {
+      return "";
+    }
+  };
+
+  const openSuggestion = (block) => {
+    setBlockMenu(null);
+    const titles = data?.titles || {};
+    const name = titles.uz || titles.kr || titles.ru || "";
+    setSuggestTarget({
+      kind,
+      docId: data?.id,
+      docTitle: [data?.designation || data?.number, name].filter(Boolean).join(" — ").slice(0, 500),
+      blockId: block.id,
+      blockText: blockPlainText(block.html),
+    });
+  };
+
+  const copyBlockLink = async (block) => {
+    setBlockMenu(null);
+    const url = `${window.location.origin}${window.location.pathname}?lang=${docLang}#${block.id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Band havolasi nusxalandi");
+    } catch (e) {
+      toast.error("Nusxalab bo'lmadi");
+    }
+  };
+
+  const closeSuggestion = useCallback(() => setSuggestTarget(null), []);
+
+  const renderBlockActions = (block) => (
+    <div className={clsx("lex-actions print:hidden", blockMenu === block.id && "is-open")}>
+      <button
+        type={"button"}
+        aria-label={"Band menyusi"}
+        onClick={() => setBlockMenu(blockMenu === block.id ? null : block.id)}
+        className={"lex-dots"}
+      >
+        <MoreVerticalIcon className={"w-4 h-4"} />
+      </button>
+      {blockMenu === block.id && (
+        <div className={"lex-menu"}>
+          <button type={"button"} onClick={() => openSuggestion(block)}>
+            <MessageIcon className={"w-[18px] h-[18px] text-[#1D5BE8]"} /> Hujjatga taklif yuborish
+          </button>
+          <button type={"button"} onClick={() => copyBlockLink(block)}>
+            <LinkIcon className={"w-[18px] h-[18px] text-[#1D5BE8]"} /> Band havolasini nusxalash
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
   // ---------- bloklarni chizish ----------
   const renderBlock = (block) => {
     const hist = block.hist || [];
@@ -389,6 +454,7 @@ const DocumentView = ({ kind = "shnq" }) => {
         data-anchor={block.anchor || undefined}
         className={"lex-block scroll-mt-28"}
       >
+        {renderBlockActions(block)}
         {prevEntries.length > 0 ? (
           <button type={"button"} className={"lex-prev-link print:hidden"} onClick={() => togglePrev(block.id)}>
             <HistoryIcon className={"w-[15px] h-[15px]"} />
@@ -776,6 +842,11 @@ const DocumentView = ({ kind = "shnq" }) => {
           </div>
         </section>
       </div>
+      <SuggestionModal
+        target={suggestTarget}
+        onClose={closeSuggestion}
+        lang={i18n.language === "ru" ? "ru" : "uz"}
+      />
     </Main>
   );
 };

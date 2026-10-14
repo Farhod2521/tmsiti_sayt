@@ -211,6 +211,11 @@ const Index = () => {
       });
   }, []);
 
+  // Yordamchidan "Barcha natijalar" bilan kelinganda: /shnq?q=...
+  useEffect(() => {
+    if (router.isReady && typeof router.query.q === "string") setSearchQuery(router.query.q);
+  }, [router.isReady, router.query.q]);
+
   // Qidiruv so'zi hujjatlar ichidan ham izlanadi (backend: MySQL FULLTEXT indeks)
   useEffect(() => {
     const q = searchNorm(searchQuery);
@@ -239,7 +244,7 @@ const Index = () => {
           setContentHits({});
           setContentLoading(false);
         });
-    }, 400);
+    }, 250);
     return () => {
       clearTimeout(timer);
       controller.abort();
