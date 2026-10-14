@@ -44,6 +44,19 @@ const card = clsx("bg-white rounded-[18px] border border-[#EEF2FA]", cardShadow)
 
 const withMedia = (html = "") => html.split("{{MEDIA}}").join(MEDIA_URL);
 
+// Word (.docx) dan yuklangan hujjat: har bir blokda Word formatlari (em da) — hujjat Word'dagidek ko'rinadi.
+// lex.uz dan kelgan hujjatlarda "fmt" yo'q — ular lex.uz uslubida chiqadi.
+const ALIGN_CSS = { center: "center", right: "right", justify: "justify", left: "left" };
+const wordStyle = (block) => {
+  const fmt = block.fmt;
+  if (!fmt) return undefined;
+  const style = { textAlign: ALIGN_CSS[block.align] || "left", marginTop: `${fmt.mt || 0}em`, marginBottom: `${fmt.mb || 0}em` };
+  if (fmt.ml) style.marginLeft = `${fmt.ml}em`;
+  if (fmt.mr) style.marginRight = `${fmt.mr}em`;
+  if (fmt.ti) style.textIndent = `${fmt.ti}em`;
+  return style;
+};
+
 const fileUrl = (name) => (name ? `${MEDIA_URL}${name}` : null);
 
 const formatDate = (iso) => {
@@ -195,6 +208,7 @@ const DocumentView = ({ kind = "shnq" }) => {
   const docLang = edition?.lang || queryLang || prefer.split(",")[0];
   const tx = DOC_TEXTS[docLang] || DOC_TEXTS.uz;
   const blocks = useMemo(() => content?.blocks || [], [content]);
+  const isWordDoc = useMemo(() => blocks.some((b) => b.fmt), [blocks]);
   const toc = useMemo(() => content?.toc || [], [content]);
   const editionsInLang = useMemo(
     () => (data?.editions || []).filter((e) => e.lang === docLang),
@@ -429,19 +443,21 @@ const DocumentView = ({ kind = "shnq" }) => {
       const Tag = block.lvl === 1 ? "h2" : "h3";
       body = (
         <Tag
-          className={clsx("lex-h", `lvl${block.lvl || 1}`)}
+          className={clsx("lex-h", `lvl${block.lvl || 1}`, block.fmt && "word")}
+          style={wordStyle(block)}
           dangerouslySetInnerHTML={{ __html: withMedia(block.html) }}
         />
       );
     } else if (block.t === "table") {
       body = (
-        <div className={"lex-table-wrap"} dangerouslySetInnerHTML={{ __html: withMedia(block.html) }} />
+        <div className={"lex-table-wrap"} style={block.fmt && block.fmt.mt ? { marginTop: `${block.fmt.mt}em` } : undefined} dangerouslySetInnerHTML={{ __html: withMedia(block.html) }} />
       );
     } else {
       body = (
         <p
           className={clsx("lex-p", block.cls)}
           data-align={block.align}
+          style={wordStyle(block)}
           dangerouslySetInnerHTML={{ __html: withMedia(block.html) }}
         />
       );
@@ -452,7 +468,7 @@ const DocumentView = ({ kind = "shnq" }) => {
         key={block.id}
         id={block.id}
         data-anchor={block.anchor || undefined}
-        className={"lex-block scroll-mt-28"}
+        className={clsx("lex-block scroll-mt-28", block.fmt && block.fmt.pb && "lex-pagebreak")}
       >
         {renderBlockActions(block)}
         {prevEntries.length > 0 ? (
@@ -819,7 +835,7 @@ const DocumentView = ({ kind = "shnq" }) => {
 
                 <div id={"shnq-print"} className={clsx("px-4 md:px-10 xl:px-14 py-6 md:py-8 transition-opacity", loading && "opacity-50")}>
                   {content ? (
-                    <div ref={contentRef} className={"lex-doc"} style={{ fontSize: `${fontSize}px` }} onClick={onContentClick}>
+                    <div ref={contentRef} className={clsx("lex-doc", isWordDoc && "word-doc")} style={{ fontSize: `${fontSize}px` }} onClick={onContentClick}>
                       {blocks.map(renderBlock)}
                     </div>
                   ) : pdfName ? (

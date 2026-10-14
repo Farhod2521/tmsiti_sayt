@@ -32,7 +32,7 @@ import {
 const API = config.BASE_MAIN_API;
 const TOKEN_KEY = "shnq_admin_token";
 const USER_KEY = "shnq_admin_user";
-const ACCEPT = ".doc,.docx,.htm,.html";
+const ACCEPT = ".doc,.docx,.rtf,.htm,.html";
 
 const card = "bg-white rounded-[18px] border border-[#EEF2FA] shadow-[0_8px_30px_rgba(16,42,116,0.06)]";
 const input =
@@ -272,8 +272,8 @@ const UploadForm = ({ doc, client, onUploaded }) => {
 
   const pickFile = (f) => {
     if (!f) return;
-    if (!/\.(docx?|html?)$/i.test(f.name)) {
-      toast.error("Faqat .doc, .docx yoki .html fayl");
+    if (!/\.(docx?|rtf|html?)$/i.test(f.name)) {
+      toast.error("Faqat .doc, .docx, .rtf yoki .html fayl");
       return;
     }
     setFile(f);

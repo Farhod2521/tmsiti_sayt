@@ -1,16 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
 import clsx from "clsx";
 import { config } from "@/config";
-import { displayCode, displayText } from "@/utils/translit";
 import { useLiveSocket } from "@/utils/live-socket";
 import OperatorAvatar from "./avatar";
 
 // Saytning o'ng pastki burchagidagi yordamchi chat.
 // Mehmon ro'yxatdan o'tmaydi: birinchi xabarda backend xona ochadi, brauzerda faqat xona tokeni saqlanadi.
 // Xabar operatorga (admin panel -> Chat) boradi, javob WebSocket orqali shu zahoti keladi.
-// Har bir savolga qo'shimcha ravishda SHNQ matnlari ichidan mos hujjatlar ham ko'rsatiladi.
+// Avtomatik javob yo'q: mehmonga faqat operator yozgan javoblar ko'rinadi.
 
 const API = config.BASE_MAIN_API;
 const TOKEN_KEY = "tmsiti_chat_token";
@@ -23,9 +21,6 @@ const TEXTS = {
     title: "TMSITI yordamchisi",
     status: "Operator odatda tez javob beradi",
     placeholder: "Savolingizni yozing...",
-    delivered: "Xabaringiz operatorga yetkazildi. Javob shu yerda paydo bo'ladi — sahifani yopsangiz ham saqlanib qoladi.",
-    docs: "Savolingiz bo'yicha mos hujjatlar:",
-    seeAll: "Barcha natijalar",
     sendError: "Xabar yuborilmadi. Internet aloqasini tekshirib, qayta urinib ko'ring.",
     operator: "Operator",
     newReply: "Operator javob berdi",
@@ -39,9 +34,6 @@ const TEXTS = {
     title: "Помощник TMSITI",
     status: "Оператор обычно отвечает быстро",
     placeholder: "Напишите вопрос...",
-    delivered: "Сообщение передано оператору. Ответ появится здесь — он сохранится, даже если закрыть страницу.",
-    docs: "Подходящие документы по вашему вопросу:",
-    seeAll: "Все результаты",
     sendError: "Сообщение не отправлено. Проверьте интернет и попробуйте снова.",
     operator: "Оператор",
     newReply: "Оператор ответил",
@@ -96,7 +88,6 @@ const Ticks = ({ read }) => (
 );
 
 const SiteAssistant = () => {
-  const router = useRouter();
   const { i18n } = useTranslation();
   const lang = i18n.language === "ru" ? "ru" : "uz";
   const tx = TEXTS[lang];
@@ -207,21 +198,6 @@ const SiteAssistant = () => {
     return data.token;
   };
 
-  const suggestDocs = async (question, afterId) => {
-    try {
-      const res = await fetch(`${API}shnq/search/?mode=question&limit=4&q=${encodeURIComponent(question)}`);
-      const data = res.ok ? await res.json() : { results: [] };
-      if ((data.results || []).length) {
-        setItems((prev) => [
-          ...prev,
-          { local: true, id: `docs-${afterId}`, after: afterId, kind: "docs", results: data.results, query: question },
-        ]);
-      }
-    } catch (e) {
-      // hujjat tavsiyasi — qo'shimcha, xato bo'lsa ko'rsatilmaydi
-    }
-  };
-
   const send = async (e) => {
     e.preventDefault();
     const text = input.trim();
@@ -237,26 +213,12 @@ const SiteAssistant = () => {
       if (!res.ok) throw new Error("send");
       const message = await res.json();
       setInput("");
-      setItems((prev) => {
-        const next = prev.some((m) => m.id === message.id) ? prev : [...prev, message];
-        const firstQuestion = !next.some((m) => m.local && m.kind === "delivered");
-        return firstQuestion
-          ? [...next, { local: true, id: `delivered-${message.id}`, after: message.id, kind: "delivered" }]
-          : next;
-      });
-      suggestDocs(text, message.id);
+      setItems((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
     } catch (err) {
       setItems((prev) => [...prev, { local: true, id: `err-${Date.now()}`, kind: "error" }]);
     } finally {
       setSending(false);
     }
-  };
-
-  const openDoc = (doc) => {
-    const hit = (doc.hits || [])[0];
-    setOpen(false);
-    if (hit && hit.block) router.push(`/shnq/${doc.id}?lang=${hit.lang}#${hit.block}`);
-    else router.push(`/shnq/${doc.id}`);
   };
 
   const botBubble = (key, children) => (
@@ -266,52 +228,13 @@ const SiteAssistant = () => {
     </div>
   );
 
-  const renderDocs = (item) =>
-    botBubble(
-      item.id,
-      <div className={"rounded-2xl rounded-bl-md bg-[#F1F5FD] px-3 py-2.5"}>
-        <p className={"text-[12px] font-semibold text-[#5B6788] mb-2"}>{tx.docs}</p>
-        <div className={"space-y-1.5"}>
-          {item.results.map((doc) => {
-            const name = lang === "ru" ? doc.name_ru || doc.name_uz : doc.name_uz || doc.name_ru;
-            return (
-              <button
-                key={doc.id}
-                type={"button"}
-                onClick={() => openDoc(doc)}
-                className={"block w-full text-left rounded-xl bg-white border border-[#E6EDFB] px-3 py-2 hover:border-[#BFD3FA] transition-colors"}
-              >
-                <span className={"block text-[12px] font-bold text-[#1D5BE8]"}>{displayCode(doc.designation, lang)}</span>
-                {name && (
-                  <span className={"block text-[12px] text-[#0B1A4F] leading-snug line-clamp-2"}>
-                    {displayText(name, lang)}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-        <button
-          type={"button"}
-          onClick={() => {
-            setOpen(false);
-            router.push(`/shnq?q=${encodeURIComponent(item.query)}`);
-          }}
-          className={"mt-2 text-[12px] font-semibold text-[#1D5BE8] hover:underline"}
-        >
-          {tx.seeAll} →
-        </button>
-      </div>
-    );
-
   const renderItem = (item) => {
     if (item.local) {
-      if (item.kind === "docs") return renderDocs(item);
-      const text = item.kind === "error" ? tx.sendError : tx.delivered;
+      // Faqat yuborishdagi xato haqida ogohlantirish (avtomatik javoblar yo'q — javobni operator yozadi)
       return botBubble(
         item.id,
-        <div className={clsx("rounded-2xl rounded-bl-md px-3.5 py-2 text-[13px] leading-[1.5]", item.kind === "error" ? "bg-[#FDECEC] text-[#B42318]" : "bg-[#F1F5FD] text-[#1E2B5A]")}>
-          {text}
+        <div className={"rounded-2xl rounded-bl-md px-3.5 py-2 text-[13px] leading-[1.5] bg-[#FDECEC] text-[#B42318]"}>
+          {tx.sendError}
         </div>
       );
     }

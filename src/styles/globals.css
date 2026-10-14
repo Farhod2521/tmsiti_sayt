@@ -241,6 +241,12 @@ input[type='file']{
   .lex-doc .lex-p.banner { margin-left: 0; }
   .lex-doc .lex-p.indent { text-indent: 1.2em; }
 }
+/* Word (.docx) dan yuklangan hujjat — Word'dagi ko'rinish: shrift, tekislash va chekinishlar blokning o'zida (style) */
+.lex-doc.word-doc { font-family: "Times New Roman", Times, serif; line-height: 1.45; color: #111827; }
+.lex-doc.word-doc .lex-p { margin: 0; }
+.lex-doc.word-doc .lex-h.word { background: none; color: inherit; padding: 0; border-radius: 0; font-size: 1em; font-weight: inherit; margin: 0; }
+.lex-doc.word-doc .lex-pagebreak { border-top: 1px dashed #CBD5E1; margin-top: 1.4em; padding-top: 1.4em; }
+.lex-doc.word-doc table { font-size: .92em; }
 /* Bizda yo'q hujjatga havola — lex.uz da ochiladi */
 .lex-doc a.lex-ext::after { content: "↗"; font-size: .75em; margin-left: .15em; vertical-align: super; opacity: .7; }
 .lex-doc a[data-doc] { text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
