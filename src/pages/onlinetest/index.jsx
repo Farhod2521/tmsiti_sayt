@@ -3,6 +3,154 @@ import Main from "@/layouts/main";
 import Menu from "@/components/menu";
 import Link from "next/link";
 
+// Ikonkalar (24x24, currentColor)
+const Svg = ({ className, children }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {children}
+  </svg>
+);
+const ClockIcon = (p) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3 2" />
+  </Svg>
+);
+const DocIcon = (p) => (
+  <Svg {...p}>
+    <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+    <path d="M14 3v5h5M9 13h6M9 17h6" />
+  </Svg>
+);
+const ShieldIcon = (p) => (
+  <Svg {...p}>
+    <path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6z" />
+    <path d="m8.8 12.2 2.2 2.2 4.3-4.6" />
+  </Svg>
+);
+const UserIcon = (p) => (
+  <Svg {...p}>
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4.5 20.5c1.2-3.7 4.1-5.5 7.5-5.5s6.3 1.8 7.5 5.5" />
+  </Svg>
+);
+const PhoneIcon = (p) => (
+  <Svg {...p}>
+    <path d="M5 4h3.5l1.7 4.3-2.2 1.4a11 11 0 0 0 6.3 6.3l1.4-2.2L20 15.5V19a1.5 1.5 0 0 1-1.6 1.5C10.6 20 4 13.4 3.5 5.6A1.5 1.5 0 0 1 5 4z" />
+  </Svg>
+);
+const MailIcon = (p) => (
+  <Svg {...p}>
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <path d="m3.5 6.5 8.5 6.5 8.5-6.5" />
+  </Svg>
+);
+const ArrowIcon = (p) => (
+  <Svg {...p}>
+    <path d="M5 12h14M13 6l6 6-6 6" />
+  </Svg>
+);
+const ListIcon = (p) => (
+  <Svg {...p}>
+    <path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" />
+  </Svg>
+);
+const HourglassIcon = (p) => (
+  <Svg {...p}>
+    <path d="M6 3h12M6 21h12M7 3c0 5 10 5 10 9s-10 4-10 9M17 3c0 5-10 5-10 9s10 4 10 9" />
+  </Svg>
+);
+const ChartIcon = (p) => (
+  <Svg {...p}>
+    <path d="M5 20v-6M10 20V10M15 20V6M20 20V3" />
+  </Svg>
+);
+const HomeIcon = (p) => (
+  <Svg {...p}>
+    <path d="m3 11 9-7 9 7M5 9.5V20h5v-6h4v6h5V9.5" />
+  </Svg>
+);
+
+const LockIcon = (p) => (
+  <Svg {...p}>
+    <rect x="5" y="11" width="14" height="10" rx="2" />
+    <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+  </Svg>
+);
+const InfoIcon = (p) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 11v5M12 8h.01" />
+  </Svg>
+);
+
+// Test yopiq (admin panelda barcha testlar status=False): rasmdagi "Test topshirish hozircha yopiq" sahifasi
+const ClosedView = () => (
+  <div className="relative">
+    <div className="relative mx-auto max-w-[680px] rounded-[24px] bg-white border border-[#EEF2FA] shadow-[0_20px_60px_rgba(16,42,116,0.10)] px-6 py-10 md:px-12 md:py-12 text-center">
+      {/* Illyustratsiya: qulf va kalendar */}
+      <div className="relative mx-auto w-[260px] h-[190px]" aria-hidden="true">
+        <div className="absolute inset-x-6 top-2 bottom-2 rounded-full bg-gradient-to-b from-[#E6EEFF] to-[#F5F8FF]" />
+        <div className="absolute right-6 top-8 w-[104px] h-[110px] rounded-[16px] bg-white border border-[#DCE6FB] shadow-[0_10px_24px_rgba(29,91,232,0.12)] p-3">
+          <div className="h-3 rounded-full bg-[#2F6BFF] mb-2" />
+          <div className="grid grid-cols-4 gap-1.5">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <span key={i} className={i === 6 ? "h-3.5 rounded-[4px] bg-[#2F6BFF]" : "h-3.5 rounded-[4px] bg-[#DCE6FB]"} />
+            ))}
+          </div>
+          <span className="absolute -bottom-3 -right-3 w-10 h-10 rounded-full bg-white border-2 border-[#2F6BFF] text-[#2F6BFF] flex items-center justify-center shadow">
+            <ClockIcon className="w-6 h-6" />
+          </span>
+        </div>
+        <div className="absolute left-12 top-6 w-[118px] h-[150px] flex flex-col items-center">
+          <div className="w-[70px] h-[58px] rounded-t-full border-[12px] border-b-0 border-[#5B8CFF]" />
+          <div className="w-[118px] h-[92px] rounded-[20px] bg-gradient-to-br from-[#CFE0FF] via-[#8FB2FF] to-[#3E72F5] shadow-[0_14px_30px_rgba(29,91,232,0.35)] flex items-center justify-center">
+            <span className="w-5 h-5 rounded-full bg-[#173A8F] relative after:content-[''] after:absolute after:left-1/2 after:-translate-x-1/2 after:top-3 after:w-2 after:h-5 after:rounded-b after:bg-[#173A8F]" />
+          </div>
+        </div>
+        <span className="absolute left-4 top-4 w-3 h-3 rounded-[4px] bg-[#C9D8F8]" />
+        <span className="absolute right-3 top-1 w-4 h-4 rounded-[5px] bg-[#DCE6FB]" />
+      </div>
+
+      <span className="mt-6 inline-flex items-center gap-2 h-10 px-5 rounded-full bg-[#E8F0FE] text-[#1D5BE8] text-[14px] font-bold tracking-wide">
+        <LockIcon className="w-4 h-4" /> TEST YOPIQ
+      </span>
+      <h1 className="mt-5 text-[28px] md:text-[36px] font-extrabold leading-tight text-[#0B1A4F]">
+        Test topshirish hozircha yopiq
+      </h1>
+      <p className="mt-3 text-[16px] leading-relaxed text-[#3B4A75]">
+        Ayni vaqtda test topshirishga ruxsat berilmagan.
+        <br className="hidden sm:block" /> Test ochilganda ushbu sahifa orqali qatnashishingiz mumkin.
+      </p>
+
+      <div className="mt-8 rounded-[16px] bg-[#EEF4FF] p-5 md:p-6 flex items-start gap-4 text-left">
+        <span className="w-12 h-12 shrink-0 rounded-full bg-white text-[#1D5BE8] flex items-center justify-center shadow-[0_4px_12px_rgba(16,42,116,0.08)]">
+          <InfoIcon className="w-6 h-6" />
+        </span>
+        <div>
+          <p className="text-[16px] font-bold text-[#0B1A4F]">Nima qilish kerak?</p>
+          <ul className="mt-2 space-y-1.5 text-[14px] text-[#1E2B5A]">
+            <li className="flex items-start gap-2.5">
+              <span className="mt-[7px] w-2 h-2 rounded-full bg-[#1D5BE8] shrink-0" />
+              Test boshlanish sanasi e&apos;lon qilinishini kuting.
+            </li>
+            <li className="flex items-start gap-2.5">
+              <span className="mt-[7px] w-2 h-2 rounded-full bg-[#1D5BE8] shrink-0" />
+              Qo&apos;shimcha ma&apos;lumot uchun institut ma&apos;muriyatiga murojaat qiling.
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <Link
+        href="/"
+        className="mt-8 inline-flex items-center gap-2 h-12 px-6 rounded-[12px] bg-[#1D5BE8] text-white text-[15px] font-semibold hover:bg-[#174FD0] transition-colors"
+      >
+        <HomeIcon className="w-5 h-5" /> Bosh sahifaga qaytish
+      </Link>
+    </div>
+  </div>
+);
+
 const Index = () => {
   // State'lar
   const [showForm, setShowForm] = useState(true);
@@ -21,6 +169,26 @@ const Index = () => {
   const [showResults, setShowResults] = useState(false);
   const [testResult, setTestResult] = useState(null);
   const [startTime, setStartTime] = useState(null);
+  // null — tekshirilmoqda, true — ochiq, false — yopiq (admin panelda barcha testlar o'chirilgan)
+  const [testOpen, setTestOpen] = useState(null);
+
+  // Test holatini tekshirish: /api/quiz/list/ faqat status=True testlarni qaytaradi
+  useEffect(() => {
+    let alive = true;
+    fetch("https://main.tmsiti.uz/api/quiz/list/")
+      .then((res) => (res.ok ? res.json() : Promise.reject(res.status)))
+      .then((data) => {
+        if (!alive) return;
+        const open =
+          Array.isArray(data) && data.some((q) => q.status !== false && Array.isArray(q.json) && q.json.length > 0);
+        setTestOpen(open);
+      })
+      // Tarmoq xatosi — forma ko'rsatiladi, "Testni boshlash" bosilganda xato matni chiqadi
+      .catch(() => alive && setTestOpen(true));
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // Komponent yuklanganida localStorage'dan ma'lumotlarni olish
   useEffect(() => {
@@ -439,105 +607,177 @@ const Index = () => {
   return (
     <Main>
       <Menu />
-      <section className={"bg-[#EFF3FA] text-xs text-[#607198] mb-[50px]"}>
-        <div className={"container py-[12px]"}>
-          <Link href={"/"}>Bosh sahifa / </Link>
-          <Link href={"#"}>Institut / </Link>
-          <Link href={"#"}>Onlayn Test</Link>
+      <section className={"bg-[#EFF3FA] text-[14px] text-[#607198]"}>
+        <div className={"container py-[12px] flex items-center gap-2"}>
+          <Link href={"/"} className={"flex items-center gap-2 text-[#0B1A4F] hover:text-[#1D5BE8]"}>
+            <HomeIcon className={"w-[18px] h-[18px]"} /> Bosh sahifa
+          </Link>
+          <span>/</span>
+          <span>Institut</span>
+          <span>/</span>
+          <span className={"text-[#0B1A4F]"}>Onlayn Test</span>
         </div>
       </section>
 
-      <section className={"container pb-20"}>
-        {showForm ? (
-          <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-8">
-            <h1 className="text-3xl font-bold mb-4">Test oldidan ma'lumot kiritish</h1>
-            <p className="text-gray-600 mb-8">
-              Iltimos, shaxsingizni tasdiqlash va test natijalarini rasmiylashtirish uchun quyidagi ma'lumotlarni to'ldiring.
-            </p>
+      <div className={"relative overflow-hidden bg-gradient-to-b from-[#F3F7FD] to-white"}>
+        {showForm && testOpen === false && (
+          <>
+            <div
+              className={"absolute inset-0 bg-cover bg-center opacity-60"}
+              style={{ backgroundImage: "url(/images/homepage-back.png)" }}
+              aria-hidden={"true"}
+            />
+            <div className={"absolute inset-0 bg-gradient-to-r from-white/30 via-white/90 to-white/30"} aria-hidden={"true"} />
+          </>
+        )}
+      <section className={"relative container pt-10 md:pt-14 pb-20"}>
+        {showForm && testOpen === null ? (
+          <div className="py-24 flex justify-center">
+            <span className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#1D5BE8]" />
+          </div>
+        ) : showForm && testOpen === false ? (
+          <ClosedView />
+        ) : showForm ? (
+          <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] gap-6 lg:gap-8 items-stretch">
+            {/* Chap panel: xush kelibsiz */}
+            <div className="relative overflow-hidden rounded-[24px] border border-[#E3EAF7] bg-[#F3F7FD] shadow-[0_12px_40px_rgba(16,42,116,0.08)] min-h-[520px]">
+              <div
+                className="absolute inset-0 bg-no-repeat bg-cover opacity-90"
+                style={{ backgroundImage: "url(/images/homepage-back.png)", backgroundPosition: "88% center" }}
+                aria-hidden="true"
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#F5F8FE] via-[#F5F8FE]/95 to-[#F5F8FE]/40" aria-hidden="true" />
+              <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-[#F5F8FE] to-transparent" aria-hidden="true" />
 
-            <form onSubmit={handleStartTest}>
-              <div className="mb-6">
-                <label className="block text-sm font-medium mb-2">Ism Familya *</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">👤</span>
-                  <input
-                    type="text"
-                    name="full_name"
-                    value={formData.full_name}
-                    onChange={handleChange}
-                    placeholder="Aliyev Ali"
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
+              <div className="relative p-7 md:p-10 flex flex-col h-full">
+                <div className="flex items-center gap-3">
+                  <img src="/icons/brand.svg" alt="TMSITI" className="h-12 w-auto" />
                 </div>
-              </div>
-
-              <div className="mb-6">
-                <label className="block text-sm font-medium mb-2">Telefon raqam *</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">📞</span>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    placeholder="+998 90 123 45 67"
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="mb-8">
-                <label className="block text-sm font-medium mb-2">Elektron pochta *</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">✉️</span>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    placeholder="ali@example.com"
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  Test natijalari ushbu pochta manziliga yuboriladi.
+                <p className="mt-2 max-w-[300px] text-[11px] font-semibold uppercase tracking-wide text-[#3B4A75] leading-snug">
+                  Texnik me&apos;yorlash va standartlashtirish ilmiy-tadqiqot instituti
                 </p>
-              </div>
 
-              {error && (
-                <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm">
-                  ⚠️ {error}
-                </div>
-              )}
+                <h1 className="mt-8 text-[34px] md:text-[42px] leading-[1.1] font-extrabold text-[#0B1A4F]">
+                  Onlayn testga
+                  <br />
+                  xush kelibsiz!
+                </h1>
+                <p className="mt-4 max-w-[340px] text-[15px] leading-relaxed text-[#3B4A75]">
+                  Ilm, tajriba va imkoniyatlar sari qadam. Testni boshlash uchun shaxsiy ma&apos;lumotlaringizni kiriting.
+                </p>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-blue-600 text-white py-4 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
-              >
-                {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    Savollar yuklanmoqda...
-                  </>
-                ) : (
-                  "Testni boshlash →"
-                )}
-              </button>
-              
-              <div className="mt-4 p-3 bg-blue-50 text-blue-700 rounded-lg text-sm">
-                <strong>📋 Test haqida ma'lumot:</strong>
-                <ul className="mt-2 list-disc pl-5 space-y-1">
-                  <li>Test davomiyligi: 1 soat</li>
-                  <li>Har bir savolga faqat bitta javob berish mumkin</li>
-                  <li>Vaqt tugaganda test avtomatik yakunlanadi</li>
-                  <li>Test yakunlangandan so'ng natijalar saqlanadi</li>
+                <ul className="mt-9 space-y-6">
+                  {[
+                    { title: "Qulay va tez", text: "Testni onlayn tarzda istalgan joydan topshirishingiz mumkin.", Icon: ClockIcon },
+                    { title: "Shaffof baholash", text: "Natijalar avtomatik tarzda hisoblanadi.", Icon: DocIcon },
+                    { title: "Ishonchli tizim", text: "Sizning ma'lumotlaringiz himoyalangan.", Icon: ShieldIcon },
+                  ].map(({ title, text, Icon }) => (
+                    <li key={title} className="flex items-start gap-4">
+                      <span className="w-[60px] h-[60px] shrink-0 rounded-full bg-white/90 shadow-[0_6px_18px_rgba(16,42,116,0.08)] text-[#1D5BE8] flex items-center justify-center">
+                        <Icon className="w-7 h-7" />
+                      </span>
+                      <span className="pt-2">
+                        <span className="block text-[16px] font-bold text-[#0B1A4F]">{title}</span>
+                        <span className="block mt-0.5 text-[14px] leading-snug text-[#3B4A75] max-w-[290px]">{text}</span>
+                      </span>
+                    </li>
+                  ))}
                 </ul>
               </div>
-            </form>
+            </div>
+
+            {/* O'ng panel: forma */}
+            <div className="rounded-[24px] bg-white border border-[#EEF2FA] shadow-[0_12px_40px_rgba(16,42,116,0.08)] p-6 md:p-10">
+              <div className="flex items-start gap-5">
+                <span className="text-[#1D5BE8] shrink-0">
+                  <DocIcon className="w-11 h-11" />
+                </span>
+                <div>
+                  <h2 className="text-[24px] md:text-[28px] font-extrabold text-[#0B1A4F] leading-tight">
+                    Test oldidan ma&apos;lumot kiritish
+                  </h2>
+                  <p className="mt-2 text-[15px] leading-relaxed text-[#5B6788]">
+                    Iltimos, shaxsingizni tasdiqlash va test natijalarini rasmiylashtirish uchun quyidagi ma&apos;lumotlarni to&apos;ldiring.
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleStartTest} className="mt-8 space-y-5">
+                {[
+                  { name: "full_name", label: "Ism Familiya", type: "text", placeholder: "Aliyev Ali", Icon: UserIcon, autoComplete: "name" },
+                  { name: "phone", label: "Telefon raqam", type: "tel", placeholder: "+998 90 123 45 67", Icon: PhoneIcon, autoComplete: "tel" },
+                  { name: "email", label: "Elektron pochta", type: "email", placeholder: "ali@example.com", Icon: MailIcon, autoComplete: "email" },
+                ].map(({ name, label, type, placeholder, Icon, autoComplete }) => (
+                  <div key={name}>
+                    <label htmlFor={`test-${name}`} className="block text-[14px] font-medium text-[#0B1A4F] mb-2">
+                      {label} <span className="text-[#E5484D]">*</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#1D5BE8] pointer-events-none">
+                        <Icon className="w-5 h-5" />
+                      </span>
+                      <input
+                        id={`test-${name}`}
+                        type={type}
+                        name={name}
+                        value={formData[name]}
+                        onChange={handleChange}
+                        placeholder={placeholder}
+                        autoComplete={autoComplete}
+                        required
+                        className="w-full h-[52px] pl-12 pr-4 rounded-[12px] border border-[#D6DEEE] bg-white text-[15px] text-[#0B1A4F] placeholder:text-[#8A95B0] outline-none focus:border-[#1D5BE8] focus:ring-4 focus:ring-[#1D5BE8]/10 transition"
+                      />
+                    </div>
+                    {name === "email" && (
+                      <p className="mt-2 text-[12px] text-[#5B6788]">Test natijalari ushbu pochta manziliga yuboriladi.</p>
+                    )}
+                  </div>
+                ))}
+
+                {error && (
+                  <div className="p-3 rounded-[12px] bg-[#FDECEC] text-[#B42318] text-[14px]">⚠️ {error}</div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full h-[56px] rounded-[12px] bg-[#1D5BE8] text-white text-[17px] font-semibold hover:bg-[#174FD0] shadow-[0_10px_24px_rgba(29,91,232,0.3)] transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {loading ? (
+                    <>
+                      <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
+                      Savollar yuklanmoqda...
+                    </>
+                  ) : (
+                    <>
+                      Testni boshlash <ArrowIcon className="w-5 h-5" />
+                    </>
+                  )}
+                </button>
+
+                <div className="rounded-[16px] bg-[#EEF4FF] p-5 md:p-6 flex gap-4">
+                  <span className="text-[#1D5BE8] shrink-0 pt-0.5">
+                    <DocIcon className="w-7 h-7" />
+                  </span>
+                  <div className="flex-1">
+                    <p className="text-[16px] font-bold text-[#0B1A4F]">Test haqida ma&apos;lumot:</p>
+                    <ul className="mt-3 space-y-2.5">
+                      {[
+                        ["Test davomiyligi: 1 soat", ClockIcon],
+                        ["Har bir savolga faqat bitta javob berish mumkin", ListIcon],
+                        ["Vaqt tugaganda test avtomatik yakunlanadi", HourglassIcon],
+                        ["Test yakunlangandan so'ng natijalar saqlanadi", ChartIcon],
+                      ].map(([text, Icon]) => (
+                        <li key={text} className="flex items-center gap-3 text-[14px] text-[#1E2B5A]">
+                          <Icon className="w-5 h-5 shrink-0 text-[#1D5BE8]" />
+                          {text}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </form>
+            </div>
           </div>
         ) : showResults ? (
           // Natijalar ekrani - Rasmda ko'rsatilganday
@@ -850,6 +1090,7 @@ const Index = () => {
           </div>
         )}
       </section>
+      </div>
     </Main>
   );
 };

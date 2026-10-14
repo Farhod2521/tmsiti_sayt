@@ -89,7 +89,7 @@ const Footer = () => {
                     <Link href={"/structural-divisions"}>{t("structure")}</Link>
                   </li>
                   <li className={"mb-[10px]"}>
-                    <Link href={"/vacancies"}>{t("vacancies")}</Link>
+                    <Link href={"/onlinetest"}>{t("vacancies")}</Link>
                   </li>
                   {/*<li className={'mb-[10px]'}>*/}
                   {/*    <Link href={'/classifier'}>Laboratoriya</Link>*/}

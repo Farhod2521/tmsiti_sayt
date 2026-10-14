@@ -10,6 +10,7 @@ import Main from "@/layouts/main";
 import Menu from "@/components/menu";
 import ContentLoader from "@/components/loader/content-loader";
 import { config } from "@/config";
+import { displayCode, displayText } from "@/utils/translit";
 import SuggestionModal from "./suggestion-modal";
 import {
   CalendarIcon,
@@ -538,14 +539,21 @@ const DocumentView = ({ kind = "shnq" }) => {
     );
   }
 
+  // Nom, guruh va shifr ro'yxatdagidek lotinda; "Ўзбекча" (kirill) tabida — kirillda qoladi.
+  // Ruscha matn o'girilmaydi (displayText faqat o'zbek kirillini taniydi).
+  const shown = (text) => (docLang === "kr" || !text ? text : displayText(text, "uz"));
   const titles = data.titles || {};
-  const title =
-    titles[docLang] || (docLang === "ru" ? titles.ru || titles.kr || titles.uz : titles.uz || titles.kr || titles.ru) || "";
-  const { label, number } =
+  const title = shown(
+    titles[docLang] || (docLang === "ru" ? titles.ru || titles.kr || titles.uz : titles.uz || titles.kr || titles.ru) || ""
+  );
+  const { label, number: rawNumber } =
     kind === "law"
       ? { label: "Qonun hujjati", number: [data.number, data.doc_date && formatDate(data.doc_date)].filter(Boolean).join(", ") }
       : splitDesignation(data.designation);
-  const groupTitle = data.group ? (docLang === "ru" ? data.group.title_ru || data.group.title_uz : data.group.title_uz) : null;
+  const number = shown(rawNumber);
+  const groupTitle = shown(
+    data.group ? (docLang === "ru" ? data.group.title_ru || data.group.title_uz : data.group.title_uz) : null
+  );
   const available = data.languages || [];
   const isOld = content && !content.is_latest;
   const latestInLang = editionsInLang[editionsInLang.length - 1];
@@ -594,7 +602,7 @@ const DocumentView = ({ kind = "shnq" }) => {
   return (
     <Main>
       <Head>
-        <title>{kind === "law" ? title : `${data.designation} — ${title}`}</title>
+        <title>{kind === "law" ? title : `${docLang === "kr" ? data.designation : displayCode(data.designation, "uz")} — ${title}`}</title>
       </Head>
       <style>{`@media print {
         body * { visibility: hidden !important; }

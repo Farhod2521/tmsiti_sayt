@@ -31,7 +31,7 @@ export const menuData = [
       {
         id: 5,
         title: "vacancies",
-        url: "/vacancies",
+        url: "/onlinetest",
       },
 
       // {
