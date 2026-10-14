@@ -268,12 +268,16 @@ const DocumentView = ({ kind = "shnq" }) => {
     [router, findAnchor]
   );
 
-  // Boshqa hujjatdan "#l<band>" bilan kelinganda — o'sha bandga o'tish
+  // Boshqa hujjatdan "#l<band>" bilan, SHNQ ro'yxatidagi matn qidiruvidan "#b<blok>" bilan
+  // kelinganda — o'sha bandga o'tish
   useEffect(() => {
     if (!content || typeof window === "undefined") return;
     const hash = window.location.hash || "";
-    if (!hash.startsWith("#l")) return;
-    const timer = setTimeout(() => flash(findAnchor(decodeURIComponent(hash.slice(2)))), 150);
+    let target = null;
+    if (hash.startsWith("#l")) target = () => findAnchor(decodeURIComponent(hash.slice(2)));
+    else if (/^#b\d+$/.test(hash)) target = () => document.getElementById(hash.slice(1));
+    if (!target) return;
+    const timer = setTimeout(() => flash(target()), 150);
     return () => clearTimeout(timer);
   }, [content, findAnchor]);
 

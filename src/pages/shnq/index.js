@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { useRouter } from "next/router";
 import ContentLoader from "@/components/loader/content-loader";
 import { displayText, searchNorm } from "@/utils/translit";
+import { config } from "@/config";
 import { Checkbox, CountBadge } from "@/components/filter-controls";
 import {
   BuildingsIcon,
@@ -172,6 +173,9 @@ const Index = () => {
   const [openItems, setOpenItems] = useState({});
   const [openGroups, setOpenGroups] = useState({});
   const [openActions, setOpenActions] = useState(null);
+  // Hujjatlar matni ichidan qidiruv natijasi: { [shnkId]: { count, hits: [...] } }
+  const [contentHits, setContentHits] = useState({});
+  const [contentLoading, setContentLoading] = useState(false);
   const actionsRef = useRef(null);
   const [selectedFilters, setSelectedFilters] = useState({
     hujjatTurlari: [],
@@ -206,6 +210,41 @@ const Index = () => {
         setLoading(false);
       });
   }, []);
+
+  // Qidiruv so'zi hujjatlar ichidan ham izlanadi (backend: MySQL FULLTEXT indeks)
+  useEffect(() => {
+    const q = searchNorm(searchQuery);
+    if (!q.split(" ").some((w) => w.length >= 3)) {
+      setContentHits({});
+      setContentLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    setContentLoading(true);
+    const timer = setTimeout(() => {
+      fetch(`${config.BASE_MAIN_API}shnq/search/?q=${encodeURIComponent(searchQuery.trim())}`, {
+        signal: controller.signal,
+      })
+        .then((res) => (res.ok ? res.json() : { results: [] }))
+        .then((data) => {
+          const map = {};
+          (data.results || []).forEach((doc) => {
+            map[doc.id] = doc;
+          });
+          setContentHits(map);
+          setContentLoading(false);
+        })
+        .catch((err) => {
+          if (err.name === "AbortError") return;
+          setContentHits({});
+          setContentLoading(false);
+        });
+    }, 400);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [searchQuery]);
 
   // Amallar menyusini tashqariga bosilganda yopish
   useEffect(() => {
@@ -285,8 +324,12 @@ const Index = () => {
     if (searchQuery.trim() !== "") {
       // Kirill/lotindan qat'i nazar: "qurilish" yozilsa "Қурилиш" ham topiladi
       const query = searchNorm(searchQuery);
-      result = filterDocs(result, (doc) =>
-        searchNorm(`${doc.name_uz || ""} ${doc.name_ru || ""} ${doc.designation || ""}`).includes(query)
+      // Nomi/shifri mos kelgan yoki matni ichida topilgan hujjatlar qoladi
+      result = filterDocs(
+        result,
+        (doc) =>
+          searchNorm(`${doc.name_uz || ""} ${doc.name_ru || ""} ${doc.designation || ""}`).includes(query) ||
+          !!contentHits[doc.id]
       );
     }
 
@@ -316,7 +359,7 @@ const Index = () => {
     }
 
     return result;
-  }, [baseData, selectedFilters, searchQuery, activeTab, favorites, sortBy]);
+  }, [baseData, selectedFilters, searchQuery, contentHits, activeTab, favorites, sortBy]);
 
   const toggleFavorite = (designation, e) => {
     if (e) e.stopPropagation();
@@ -606,6 +649,47 @@ const Index = () => {
     );
   };
 
+  // Matn ichida topilgan bandlar: bosilganda hujjat aynan shu bandda ochiladi
+  const openHit = (doc, hit) => {
+    if (hit.block) router.push(`/shnq/${doc.id}?lang=${hit.lang}#${hit.block}`);
+    else handleView(doc);
+  };
+
+  const renderHits = (doc) => {
+    const found = contentHits[doc.id];
+    if (!found || !searchQuery.trim()) return null;
+    return (
+      <div className={"mt-3 space-y-1.5"}>
+        <p className={"text-[12px] font-medium text-[#5B6788]"}>
+          Matn ichida {found.count} ta moslik
+        </p>
+        {found.hits.map((hit, i) => (
+          <button
+            key={i}
+            type={"button"}
+            onClick={() => openHit(doc, hit)}
+            className={
+              "block w-full text-left rounded-lg border border-[#EEF2FA] bg-[#FAFBFE] px-3 py-2 hover:border-[#D6E2FB] hover:bg-[#F3F7FF] transition-colors"
+            }
+          >
+            {(hit.section || hit.page) && (
+              <span className={"block text-[12px] font-semibold text-[#1D4FC4] mb-0.5"}>
+                {hit.section ? displayText(hit.section, lang) : `${hit.page}-sahifa`}
+              </span>
+            )}
+            <span
+              className={
+                "block text-[13px] leading-[1.5] text-[#3A4673] [&_mark]:bg-[#FFE58F] [&_mark]:text-inherit [&_mark]:rounded-sm [&_mark]:px-0.5"
+              }
+              // Parcha backendda HTML-escape qilingan, faqat <mark> teglari bor
+              dangerouslySetInnerHTML={{ __html: displayText(hit.snippet, lang) }}
+            />
+          </button>
+        ))}
+      </div>
+    );
+  };
+
   const renderDocument = (doc, key) => {
     const { label, number } = splitDesignation(doc.designation);
     // Shifr va nom bosilganda ham hujjat ochiladi ("Ko'rish" tugmasi kabi)
@@ -661,6 +745,7 @@ const Index = () => {
             {displayText(doc.name_uz, lang)}
           </p>
           {renderTags(doc)}
+          {renderHits(doc)}
           <div className={"mt-auto pt-4"}>
             {renderActions(doc, key, true)}
           </div>
@@ -687,6 +772,7 @@ const Index = () => {
             {displayText(doc.name_uz, lang)}
           </p>
           {renderTags(doc)}
+          {renderHits(doc)}
         </div>
         {renderActions(doc, key)}
       </div>
@@ -734,6 +820,8 @@ const Index = () => {
           <h3 className={"mt-5 text-[18px] font-bold text-[#0B1A4F]"}>
             {activeTab === "mening"
               ? "Saqlangan hujjatlar hozircha yo'q"
+              : contentLoading
+              ? "Hujjatlar ichidan qidirilmoqda..."
               : "Hech narsa topilmadi"}
           </h3>
           <p className={"mt-2 text-[14px] text-[#5B6788] max-w-md mx-auto"}>
@@ -747,6 +835,9 @@ const Index = () => {
 
     return (
       <div className={"space-y-4"}>
+        {contentLoading && (
+          <p className={"text-[13px] text-[#5B6788] px-1"}>Hujjatlar ichidan ham qidirilmoqda...</p>
+        )}
         {filteredData.map((item, itemIndex) => {
           const itemClosed = openItems[itemIndex];
           return (
