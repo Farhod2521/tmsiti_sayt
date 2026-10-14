@@ -12,31 +12,26 @@ import OperatorAvatar from "./avatar";
 
 const API = config.BASE_MAIN_API;
 const TOKEN_KEY = "tmsiti_chat_token";
-const GREETING_KEY = "assistant_greeting_closed";
 
 const TEXTS = {
   uz: {
     hello: "Assalomu alaykum! Sizga qanday yordam bera olaman?",
-    helloSub: "Savolingizni yozing — operator javob beradi.",
     title: "TMSITI yordamchisi",
     status: "Operator odatda tez javob beradi",
     placeholder: "Savolingizni yozing...",
     sendError: "Xabar yuborilmadi. Internet aloqasini tekshirib, qayta urinib ko'ring.",
     operator: "Operator",
-    newReply: "Operator javob berdi",
     open: "Yordamchini ochish",
     close: "Yopish",
     send: "Yuborish",
   },
   ru: {
     hello: "Здравствуйте! Чем могу помочь?",
-    helloSub: "Напишите вопрос — оператор ответит.",
     title: "Помощник TMSITI",
     status: "Оператор обычно отвечает быстро",
     placeholder: "Напишите вопрос...",
     sendError: "Сообщение не отправлено. Проверьте интернет и попробуйте снова.",
     operator: "Оператор",
-    newReply: "Оператор ответил",
     open: "Открыть помощника",
     close: "Закрыть",
     send: "Отправить",
@@ -93,7 +88,6 @@ const SiteAssistant = () => {
   const tx = TEXTS[lang];
 
   const [open, setOpen] = useState(false);
-  const [greeting, setGreeting] = useState(false);
   const [token, setToken] = useState(null);
   // Serverdagi xabarlar + faqat shu brauzerda ko'rinadigan yordamchi kartochkalar (local: true)
   const [items, setItems] = useState([]);
@@ -107,9 +101,6 @@ const SiteAssistant = () => {
 
   useEffect(() => {
     setToken(store.get("localStorage", TOKEN_KEY));
-    if (store.get("sessionStorage", GREETING_KEY)) return undefined;
-    const timer = setTimeout(() => setGreeting(true), 1500);
-    return () => clearTimeout(timer);
   }, []);
 
   const loadHistory = useCallback(async (roomToken) => {
@@ -174,15 +165,7 @@ const SiteAssistant = () => {
     if (open && inputRef.current) inputRef.current.focus();
   }, [open]);
 
-  const hideGreeting = () => {
-    setGreeting(false);
-    store.set("sessionStorage", GREETING_KEY, "1");
-  };
-
-  const openPanel = () => {
-    hideGreeting();
-    setOpen(true);
-  };
+  const openPanel = () => setOpen(true);
 
   const ensureRoom = async () => {
     if (token) return token;
@@ -262,35 +245,6 @@ const SiteAssistant = () => {
 
   return (
     <div className={"fixed bottom-4 right-4 md:bottom-6 md:right-6 z-[60] print:hidden"}>
-      {/* "Assalomu alaykum" yozuvi / operator javobi haqida eslatma */}
-      {!open && (greeting || unread > 0) && (
-        <div
-          className={"absolute bottom-[78px] right-0 w-[260px] rounded-2xl rounded-br-md bg-white px-4 py-3 shadow-[0_12px_32px_rgba(16,42,116,0.18)] border border-[#EEF2FA] cursor-pointer"}
-          onClick={openPanel}
-        >
-          <button
-            type={"button"}
-            aria-label={tx.close}
-            onClick={(e) => {
-              e.stopPropagation();
-              hideGreeting();
-              setUnread(0);
-            }}
-            className={"absolute top-2 right-2 text-[#9AA6C4] hover:text-[#0B1A4F]"}
-          >
-            <CloseIcon className={"w-3.5 h-3.5"} />
-          </button>
-          {unread > 0 ? (
-            <p className={"text-[14px] font-bold text-[#0B1A4F] pr-3"}>{tx.newReply} 💬</p>
-          ) : (
-            <>
-              <p className={"text-[14px] font-bold text-[#0B1A4F] pr-3"}>{tx.hello}</p>
-              <p className={"mt-0.5 text-[13px] leading-snug text-[#5B6788]"}>{tx.helloSub}</p>
-            </>
-          )}
-        </div>
-      )}
-
       {open && (
         <div
           role={"dialog"}
