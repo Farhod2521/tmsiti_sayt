@@ -964,7 +964,7 @@ const Dashboard = ({ token, user, onLogout }) => {
 
         {tab === "chat" && <ChatPanel client={client} event={liveEvent} connected={liveConnected} />}
 
-        {tab === "suggestions" && <SuggestionsPanel client={client} event={liveEvent} onChanged={loadBadges} />}        {tab === "stats" && <AnalyticsDashboard client={client} />}
+        {tab === "suggestions" && <SuggestionsPanel client={client} event={liveEvent} onChanged={loadBadges} />}
 
         {VISIBLE_TABS.includes("lex") && tab === "lex" && <LexSyncPanel client={client} onOpenDoc={openDoc} />}
 
