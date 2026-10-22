@@ -7,7 +7,7 @@ import clsx from "clsx";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "next/router";
 import ContentLoader from "@/components/loader/content-loader";
-import { displayText, searchNorm } from "@/utils/translit";
+import { displayText, searchNorm, trimTitle } from "@/utils/translit";
 import { config } from "@/config";
 import { Checkbox, CountBadge } from "@/components/filter-controls";
 import {
@@ -747,7 +747,7 @@ const Index = () => {
             className={clsx("mt-3 text-[14px] leading-[1.45] text-[#1E2B5A]", openClass)}
             {...openProps}
           >
-            {displayText(doc.name_uz, lang)}
+            {trimTitle(displayText(doc.name_uz, lang))}
           </p>
           {renderTags(doc)}
           {renderHits(doc)}
@@ -774,7 +774,7 @@ const Index = () => {
             className={clsx("text-[14px] leading-[1.45] text-[#1E2B5A]", openClass)}
             {...openProps}
           >
-            {displayText(doc.name_uz, lang)}
+            {trimTitle(displayText(doc.name_uz, lang))}
           </p>
           {renderTags(doc)}
           {renderHits(doc)}

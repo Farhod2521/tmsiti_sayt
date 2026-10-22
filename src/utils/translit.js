@@ -44,6 +44,10 @@ export const isUzbekCyrillic = (text) => {
 
 // Sayt tiliga qarab: o'zbekcha (lotin) saytda o'zbek kirill matni lotinga o'giriladi;
 // ruscha matn va rus tilidagi sayt — asl holicha
+// Hujjat nomi oxiridagi nuqta (bazada ba'zilarida bor, ba'zilarida yo'q) — bir xil ko'rinishi uchun olib tashlanadi.
+// Ko'p nuqta (…) ham, oxiridagi bo'shliqlar ham olinadi.
+export const trimTitle = (text) => String(text || "").replace(/[\s.]+$/, "");
+
 export const displayText = (text, lang) => (lang === "ru" || !isUzbekCyrillic(text) ? text : toLatin(text));
 
 // Hujjat shifri (ШНҚ 2.01.02-04, ҚМҚ, ҚР, СРН) — o'zbekcha saytda doim lotinda

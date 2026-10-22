@@ -10,7 +10,7 @@ import Main from "@/layouts/main";
 import Menu from "@/components/menu";
 import ContentLoader from "@/components/loader/content-loader";
 import { config } from "@/config";
-import { displayCode, displayText } from "@/utils/translit";
+import { displayCode, displayText, trimTitle } from "@/utils/translit";
 import SuggestionModal from "./suggestion-modal";
 import {
   CalendarIcon,
@@ -543,8 +543,8 @@ const DocumentView = ({ kind = "shnq" }) => {
   // Ruscha matn o'girilmaydi (displayText faqat o'zbek kirillini taniydi).
   const shown = (text) => (docLang === "kr" || !text ? text : displayText(text, "uz"));
   const titles = data.titles || {};
-  const title = shown(
-    titles[docLang] || (docLang === "ru" ? titles.ru || titles.kr || titles.uz : titles.uz || titles.kr || titles.ru) || ""
+  const title = trimTitle(
+    shown(titles[docLang] || (docLang === "ru" ? titles.ru || titles.kr || titles.uz : titles.uz || titles.kr || titles.ru) || "")
   );
   const { label, number: rawNumber } =
     kind === "law"
