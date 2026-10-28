@@ -4,6 +4,9 @@ import Menu from "@/components/menu";
 import Link from "next/link";
 
 // Ikonkalar (24x24, currentColor)
+// Test topshirish vaqti (sekund): 75 daqiqa
+const TEST_DURATION = 75 * 60;
+
 const Svg = ({ className, children }) => (
   <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     {children}
@@ -161,7 +164,7 @@ const Index = () => {
   });
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
-  const [timeLeft, setTimeLeft] = useState(3600); // 1 soat (3600 sekund)
+  const [timeLeft, setTimeLeft] = useState(TEST_DURATION); // 75 daqiqa
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -516,7 +519,7 @@ const Index = () => {
     setQuestions([]);
     setAnswers({});
     setCurrentQuestion(0);
-    setTimeLeft(3600);
+    setTimeLeft(TEST_DURATION);
     setFormData({
       full_name: "",
       phone: "",
@@ -763,7 +766,7 @@ const Index = () => {
                     <p className="text-[16px] font-bold text-[#0B1A4F]">Test haqida ma&apos;lumot:</p>
                     <ul className="mt-3 space-y-2.5">
                       {[
-                        ["Test davomiyligi: 1 soat", ClockIcon],
+                        ["Test davomiyligi: 75 daqiqa", ClockIcon],
                         ["Har bir savolga faqat bitta javob berish mumkin", ListIcon],
                         ["Vaqt tugaganda test avtomatik yakunlanadi", HourglassIcon],
                         ["Test yakunlangandan so'ng natijalar saqlanadi", ChartIcon],
@@ -995,10 +998,10 @@ const Index = () => {
                     <div className="w-full bg-gray-700 rounded-full h-2">
                       <div 
                         className={`h-2 rounded-full transition-all ${
-                          timeLeft > 1800 ? 'bg-green-500' : 
+                          timeLeft > TEST_DURATION / 2 ? 'bg-green-500' : 
                           timeLeft > 600 ? 'bg-yellow-500' : 'bg-red-500'
                         }`}
-                        style={{ width: `${(timeLeft / 3600) * 100}%` }}
+                        style={{ width: `${(timeLeft / TEST_DURATION) * 100}%` }}
                       ></div>
                     </div>
                     <div className="text-xs text-gray-400 mt-2">
