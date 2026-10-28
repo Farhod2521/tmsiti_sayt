@@ -9,6 +9,7 @@ import { config } from "@/config";
 import AnalyticsDashboard from "@/components/analytics/dashboard";
 import ChatPanel from "@/components/admin/chat-panel";
 import SuggestionsPanel from "@/components/admin/suggestions-panel";
+import CoveragePanel from "@/components/admin/coverage-panel";
 import { useLiveSocket } from "@/utils/live-socket";
 import {
   ChartBoxIcon,
@@ -721,6 +722,7 @@ const SECTIONS = [
   { id: "stats", label: "Statistika", hint: "Sayt tashriflari va foydalanuvchilar", Icon: ChartBoxIcon },
   { id: "chat", label: "Chat", hint: "Saytdagi yordamchi orqali yozgan mehmonlar", Icon: MessageIcon, badge: "chat_unread" },
   { id: "suggestions", label: "Takliflar", hint: "Hujjatlarga yuborilgan takliflar va xatoliklar", Icon: EditIcon, badge: "suggestions_new" },
+  { id: "coverage", label: "Hujjatlar holati", hint: "Qaysi SHNQ matn ko'rinishida, qaysilari faqat PDF bilan ochiladi", Icon: DatabaseIcon },
   { id: "docs", label: "Hujjatlarni yuklash", hint: "SHNQ matnlari va tahrirlarini yuklash", Icon: FileTextIcon },
   { id: "lex", label: "lex.uz import", hint: "Hujjatlarni lex.uz dan avtomatik yuklash", Icon: RefreshUpIcon },
 ];
@@ -965,6 +967,8 @@ const Dashboard = ({ token, user, onLogout }) => {
         {tab === "chat" && <ChatPanel client={client} event={liveEvent} connected={liveConnected} />}
 
         {tab === "suggestions" && <SuggestionsPanel client={client} event={liveEvent} onChanged={loadBadges} />}
+
+        {tab === "coverage" && <CoveragePanel client={client} onOpenDoc={openDoc} />}
 
         {VISIBLE_TABS.includes("lex") && tab === "lex" && <LexSyncPanel client={client} onOpenDoc={openDoc} />}
 
