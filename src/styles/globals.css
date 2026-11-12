@@ -247,6 +247,23 @@ input[type='file']{
 .lex-doc.word-doc .lex-h.word { background: none; color: inherit; padding: 0; border-radius: 0; font-size: 1em; font-weight: inherit; margin: 0; }
 .lex-doc.word-doc .lex-pagebreak { border-top: 1px dashed #CBD5E1; margin-top: 1.4em; padding-top: 1.4em; }
 .lex-doc.word-doc table { font-size: .92em; }
+/* Word rasmlari/shakllari: o'lcham va joylashuv Word'dagidek (em da), pechatlar imzo ustida */
+.lex-doc.word-doc .lex-p, .lex-doc.word-doc .lex-h.word { position: relative; }
+.lex-doc .docx-obj { position: relative; display: inline-block; max-width: 100%; vertical-align: bottom; text-indent: 0; line-height: 1.1; }
+.lex-doc .docx-obj img, .lex-doc .docx-obj .docx-shape, .lex-doc .docx-obj .docx-grp { position: absolute; max-width: none; display: block; }
+.lex-doc .docx-obj svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.lex-doc .docx-obj .docx-fill { position: absolute; inset: 0; box-sizing: border-box; }
+.lex-doc .docx-obj .docx-txbx { position: absolute; inset: 0; overflow: hidden; text-align: left; }
+.lex-doc .docx-obj .docx-line { display: block; }
+.lex-doc .docx-abs { position: absolute; }
+.lex-doc .docx-block { display: block; }
+.lex-doc .docx-float-left { float: left; margin: 0 1em .5em 0; }
+.lex-doc .docx-float-right { float: right; margin: 0 0 .5em 1em; }
+.lex-doc.word-doc .lex-block::after { content: ""; display: table; clear: both; }
+/* Ko'p ustunli bo'lim (imzo qismi): ustunlar yonma-yon */
+.lex-doc .docx-cols { display: flex; align-items: flex-start; text-indent: 0; }
+.lex-doc .docx-col { display: block; flex: 0 0 auto; min-width: 0; }
+.lex-doc .docx-para { display: block; position: relative; }
 /* Bizda yo'q hujjatga havola — lex.uz da ochiladi */
 .lex-doc a.lex-ext::after { content: "↗"; font-size: .75em; margin-left: .15em; vertical-align: super; opacity: .7; }
 .lex-doc a[data-doc] { text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
